@@ -1,0 +1,273 @@
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "github-push-sync",
+      "name": "Project Auto-Sync",
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 */6 * * *",
+        "staggerMs": 300000
+      },
+      "tz": "Asia/Baghdad",
+      "session": "isolated",
+      "payload": {
+        "message": "Step through every subdirectory in D:\\AI_PROJECTS\\projects. If it's a git repo, check for uncommitted changes. Stage all, commit with 'auto-sync: periodic backup', and push. This ensures all work is persisted to GitHub.",
+        "kind": "agentTurn"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "telegram",
+        "to": "468031863"
+      },
+      "enabled": true,
+      "state": {
+        "nextRunAtMs": 1773630128754,
+        "lastRunAtMs": 1773616360677,
+        "lastRunStatus": "ok",
+        "lastStatus": "ok",
+        "lastDurationMs": 182262,
+        "lastDelivered": true,
+        "lastDeliveryStatus": "delivered",
+        "consecutiveErrors": 0
+      },
+      "wakeMode": "now",
+      "sessionTarget": "isolated",
+      "updatedAtMs": 1773616542939
+    },
+    {
+      "id": "gh-pages-deploy",
+      "name": "GitHub Pages Deployment",
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 0 * * *"
+      },
+      "tz": "Asia/Baghdad",
+      "session": "isolated",
+      "payload": {
+        "message": "Search D:\\AI_PROJECTS\\projects for any dynamic website projects that use GitHub Pages (look for gh-pages branch or build commands). Run the build process if necessary and push to the gh-pages branch to ensure the live sites are updated.",
+        "kind": "agentTurn"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "telegram",
+        "to": "468031863"
+      },
+      "enabled": true,
+      "state": {
+        "nextRunAtMs": 1773694800000,
+        "lastRunAtMs": 1773616542939,
+        "lastRunStatus": "ok",
+        "lastStatus": "ok",
+        "lastDurationMs": 300773,
+        "lastDelivered": true,
+        "lastDeliveryStatus": "delivered",
+        "consecutiveErrors": 0
+      },
+      "wakeMode": "now",
+      "sessionTarget": "isolated",
+      "updatedAtMs": 1773616843712
+    },
+    {
+      "id": "b9d2c62a-5d74-495b-ab1e-00a125b61593",
+      "agentId": "main",
+      "sessionKey": "agent:main:main",
+      "name": "Daily Brief Fetch - Hourly @:10",
+      "enabled": true,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 3600000,
+        "anchorMs": 1741958200000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "message": "Fetch Telegram channel and process daily briefs. This runs every hour at :10.",
+        "kind": "agentTurn"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "telegram",
+        "to": "468031863"
+      },
+      "state": {
+        "lastRunStatus": "error",
+        "lastStatus": "error",
+        "consecutiveErrors": 6,
+        "nextRunAtMs": 1773624164436,
+        "lastRunAtMs": 1773620262935,
+        "lastDurationMs": 301501,
+        "lastDeliveryStatus": "unknown",
+        "lastError": "HttpError: Network request for 'sendMessage' failed!"
+      },
+      "updatedAtMs": 1773620564436
+    },
+    {
+      "id": "a0036b1a-bb1b-428f-a028-06ab983a1287",
+      "agentId": "main",
+      "sessionKey": "agent:main:main",
+      "name": "Process Briefs - @:25",
+      "enabled": true,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 3600000,
+        "anchorMs": 1741958200000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "message": "Process and analyze the daily brief content fetched at :10. This runs every hour at :25 to process the previously fetched data.",
+        "kind": "agentTurn"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "telegram",
+        "to": "468031863"
+      },
+      "state": {
+        "lastRunStatus": "error",
+        "lastStatus": "error",
+        "consecutiveErrors": 3,
+        "nextRunAtMs": 1773623862935,
+        "lastRunAtMs": 1773620262935,
+        "lastDurationMs": 601644,
+        "lastDeliveryStatus": "unknown",
+        "lastError": "HttpError: Network request for 'sendMessage' failed!"
+      },
+      "updatedAtMs": 1773620864579
+    },
+    {
+      "id": "50b603de-6218-4309-af83-679c783a12ae",
+      "agentId": "main",
+      "sessionKey": "agent:main:main",
+      "name": "Heartbeat - @:40",
+      "enabled": true,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 3600000,
+        "anchorMs": 1741958200000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "message": "Perform heartbeat health check. Runs every hour at :40.",
+        "kind": "agentTurn"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "telegram",
+        "to": "468031863"
+      },
+      "state": {
+        "lastRunStatus": "error",
+        "lastStatus": "error",
+        "consecutiveErrors": 3,
+        "nextRunAtMs": 1773624164436,
+        "lastRunAtMs": 1773620564436,
+        "lastDurationMs": 599447,
+        "lastDelivered": true,
+        "lastDeliveryStatus": "delivered",
+        "lastErrorReason": "timeout",
+        "lastError": "Request timed out before a response was generated. Please try again, or increase `agents.defaults.timeoutSeconds` in your config."
+      },
+      "updatedAtMs": 1773621163883
+    },
+    {
+      "id": "sumzy-automation",
+      "name": "Sumzy - Telegram Link Analyzer",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "55 * * * *"
+      },
+      "tz": "Asia/Baghdad",
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "message": "Check Telegram for recent links. Use the summarize skill to analyze each link. Save to D:\\AI_PROJECTS\\projects\\sumzy\\docs\\, update dashboard index.html, and push to GitHub.",
+        "kind": "agentTurn"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "telegram",
+        "to": "468031863"
+      },
+      "state": {
+        "lastRunStatus": "error",
+        "lastStatus": "error",
+        "consecutiveErrors": 1,
+        "nextRunAtMs": 1773626100000,
+        "lastRunAtMs": 1773618900013,
+        "lastDurationMs": 301314,
+        "lastDeliveryStatus": "unknown"
+      },
+      "updatedAtMs": 1773619201327
+    },
+    {
+      "id": "5cbbbf26-eb6d-413a-b9ea-b99bae7fce91",
+      "agentId": "main",
+      "sessionKey": "agent:main:cron:sumzy-automation",
+      "name": "sumzy-automation",
+      "enabled": true,
+      "createdAtMs": 1773547220196,
+      "updatedAtMs": 1773620260837,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 1800000,
+        "anchorMs": 1773547220196
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "## 🦞 Sumzy - Telegram Link Analyzer\n\n**Check for new links to analyze**\n\nLooking through recent messages for YouTube, market analysis, or @intothecryptoverse channel content...\n\n---\n\n### Current Status: **No New Links Found**\n\nPlease share any Telegram links (YouTube videos, market analysis) you'd like me to summarize and add to the dashboards.\n\n---\n\n### What happens next:\n1. I'll use the `summarize` skill to extract key insights\n2. Save detailed notes to `D:\\AI_PROJECTS\\projects\\sumzy\\docs\\\n3. Update the dashboard index.html with new content\n4. Commit and push changes to GitHub Pages\n\n---\n\n**Type a link when ready, or say \"SKIP\" if no links to analyze.**"
+      },
+      "delivery": {
+        "mode": "announce"
+      },
+      "state": {
+        "nextRunAtMs": 1773623860837,
+        "lastRunAtMs": 1773619960689,
+        "lastRunStatus": "error",
+        "lastStatus": "error",
+        "lastDurationMs": 300148,
+        "lastDeliveryStatus": "unknown",
+        "consecutiveErrors": 9,
+        "lastError": "Delivering to Telegram requires target <chatId>"
+      }
+    },
+    {
+      "id": "fd2e4bd0-f73c-4802-8d92-3f3433472aa4",
+      "agentId": "main",
+      "sessionKey": "agent:main:cron:sumzy-automation",
+      "name": "sumzy-automation",
+      "enabled": true,
+      "createdAtMs": 1773547424514,
+      "updatedAtMs": 1773623324972,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 1800000,
+        "anchorMs": 1773547424514
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "## 🦞 Sumzy - Telegram Link Analyzer\n\n**Check for new links to analyze**\n\nLooking through recent messages for YouTube, market analysis, or @intothecryptoverse channel content...\n\n---\n\n### Current Status: **No New Links Found**\n\nPlease share any Telegram links (YouTube videos, market analysis) you'd like me to summarize and add to the dashboards.\n\n---\n\n### What happens next:\n1. I'll use the `summarize` skill to extract key insights\n2. Save detailed notes to `D:\\AI_PROJECTS\\projects\\sumzy\\docs\\\n3. Update the dashboard index.html with new content\n4. Commit and push changes to GitHub Pages\n\n---\n\n**Type a link when ready, or say \"SKIP\" if no links to analyze.**"
+      },
+      "delivery": {
+        "mode": "announce"
+      },
+      "state": {
+        "nextRunAtMs": 1773626924972,
+        "lastRunAtMs": 1773623024521,
+        "lastRunStatus": "error",
+        "lastStatus": "error",
+        "lastDurationMs": 300451,
+        "lastDeliveryStatus": "unknown",
+        "consecutiveErrors": 12,
+        "lastError": "Delivering to Telegram requires target <chatId>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.3.13",
+    "lastTouchedAt": "2026-03-15T02:24:37.514Z"
+  },
+  "wizard": {
+    "lastRunAt": "2026-03-13T21:24:11.271Z",
+    "lastRunVersion": "2026.3.12",
+    "lastRunCommand": "onboard",
+    "lastRunMode": "local"
+  },
+  "update": {
+    "channel": "stable",
+    "checkOnStart": true,
+    "auto": {
+      "enabled": true
+    }
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "qwen3-5-9b": {
+        "baseUrl": "http://100.67.202.80:3003/v1",
+        "apiKey": "lm-studio",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "qwen3.5-9b-claude-4.6-opus-reasoning-distilled",
+            "name": "qwen3.5-9b-claude-4.6-opus-reasoning-distilled (Custom Provider)",
+            "reasoning": true,
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 131072,
+            "maxTokens": 131072
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "qwen3-5-9b/qwen3.5-9b-claude-4.6-opus-reasoning-distilled"
+      },
+      "models": {
+        "qwen3-5-9b/qwen3.5-9b-claude-4.6-opus-reasoning-distilled": {
+          "alias": "qwen3.5-9b"
+        }
+      },
+      "workspace": "C:\\Users\\medo\\.openclaw\\workspace",
+      "timeoutSeconds": 300,
+      "compaction": {
+        "mode": "safeguard"
+      },
+      "heartbeat": {
+        "every": "30m",
+        "model": "qwen3-5-9b/qwen3.5-9b-claude-4.6-opus-reasoning-distilled",
+        "target": "telegram",
+        "directPolicy": "allow",
+        "prompt": "Read HEARTBEAT.md if it exists. Check system status, report any issues. Summarize what you are working on.",
+        "ackMaxChars": 300
+      }
+    }
+  },
+  "tools": {
+    "profile": "coding"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true,
+    "ownerDisplay": "raw"
+  },
+  "session": {
+    "dmScope": "per-channel-peer"
+  },
+  "cron": {
+    "enabled": true,
+    "maxConcurrentRuns": 2,
+    "sessionRetention": "24h"
+  },
+  "hooks": {
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "boot-md": {
+          "enabled": true
+        },
+        "bootstrap-extra-files": {
+          "enabled": true
+        },
+        "command-logger": {
+          "enabled": true
+        },
+        "session-memory": {
+          "enabled": true
+        }
+      }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "dmPolicy": "pairing",
+      "botToken": "7623046125:AAH1Ms-65dTTq_7Br_zuqGr2Mb8TCVlgZM0",
+      "groupPolicy": "open",
+      "streaming": "partial"
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "9a2a3b364f61a7b7763570f9ddbb6002cf4a34b357652e5a"
+    },
+    "tailscale": {
+      "mode": "serve",
+      "resetOnExit": false
+    },
+    "controlUi": {
+      "allowedOrigins": [
+        "https://desktop-9abbqhj.talpidae-salary.ts.net"
+      ]
+    },
+    "nodes": {
+      "denyCommands": [
+        "camera.snap",
+        "camera.clip",
+        "screen.record",
+        "contacts.add",
+        "calendar.add",
+        "reminders.add",
+        "sms.send"
+      ]
+    }
+  },
+  "plugins": {
+    "entries": {
+      "telegram": {
+        "enabled": true
+      }
+    }
+  }
+}

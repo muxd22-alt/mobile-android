@@ -1,0 +1,17 @@
+# Ignore Cosign private keys
+cosign.key
+*.key
+cosign.password
+
+# Ignore temporary and backup files
+*~
+*.swp
+*.bak
+.DS_Store
+
+# Ignore old plans
+plan*.MD
+find_names.md
+
+# Ignore scripts logs or debugs
+*.log

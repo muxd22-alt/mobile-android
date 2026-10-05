@@ -1,0 +1,28 @@
+{
+  "providers": {
+    "qwen3-5-9b": {
+      "baseUrl": "http://100.67.202.80:3003/v1",
+      "apiKey": "lm-studio",
+      "api": "openai-completions",
+      "models": [
+        {
+          "id": "qwen3.5-9b-claude-4.6-opus-reasoning-distilled",
+          "name": "qwen3.5-9b-claude-4.6-opus-reasoning-distilled (Custom Provider)",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 131072,
+          "maxTokens": 131072,
+          "api": "openai-completions"
+        }
+      ]
+    }
+  }
+}

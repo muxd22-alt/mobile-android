@@ -1,0 +1,27 @@
+{
+  "providers": {
+    "qwen3-5-9b": {
+      "baseUrl": "http://192.168.0.100:3003/v1",
+      "api": "openai-completions",
+      "models": [
+        {
+          "id": "qwen3.5-9b-claude-4.6-opus-reasoning-distilled",
+          "name": "qwen3.5-9b-claude-4.6-opus-reasoning-distilled (Custom Provider)",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 16000,
+          "maxTokens": 4096,
+          "api": "openai-completions"
+        }
+      ]
+    }
+  }
+}

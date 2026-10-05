@@ -1,0 +1,49 @@
+#!/usr/bin/bash
+# Select game mode or desktop mode for Bazzite-Deepin-OGC
+# This script is a "patch" to ensure Deepin and Gamescope interplay correctly.
+# Uses jq to handle possible config parsing if needed.
+
+SESSION=$1
+
+if [[ -z "$SESSION" ]]; then
+    echo "Usage: $0 [gamescope|deepin|gnome|plasma]"
+    exit 1
+fi
+
+case "$SESSION" in
+    gamescope)
+        echo "Switching to Gamescope Mode..."
+        # In Bazzite, we can use the built-in switcher if it's there
+        if [ -f "/usr/bin/steamos-session-select-original" ]; then
+            /usr/bin/steamos-session-select-original gamescope
+        else
+            # Manual session select implementation
+            dbus-send --system --print-reply --dest=org.freedesktop.Accounts /org/freedesktop/Accounts/User$(id -u) \
+                org.freedesktop.DBus.Properties.Set string:org.freedesktop.Accounts.User string:Session variant:string:"gamescope"
+        fi
+        ;;
+    deepin)
+        echo "Switching to Deepin Desktop Environment..."
+        if [ -f "/usr/bin/steamos-session-select-original" ]; then
+            /usr/bin/steamos-session-select-original deepin
+        else
+            dbus-send --system --print-reply --dest=org.freedesktop.Accounts /org/freedesktop/Accounts/User$(id -u) \
+                org.freedesktop.DBus.Properties.Set string:org.freedesktop.Accounts.User string:Session variant:string:"deepin"
+        fi
+        ;;
+    *)
+        echo "Switching to $SESSION..."
+        if [ -f "/usr/bin/steamos-session-select-original" ]; then
+            /usr/bin/steamos-session-select-original "$SESSION"
+        else
+             dbus-send --system --print-reply --dest=org.freedesktop.Accounts /org/freedesktop/Accounts/User$(id -u) \
+                org.freedesktop.DBus.Properties.Set string:org.freedesktop.Accounts.User string:Session variant:string:"$SESSION"
+        fi
+        ;;
+esac
+
+# Finally, execute logout or systemctl restart to apply if not handled by the original tool
+if [ ! -f "/usr/bin/steamos-session-select-original" ]; then
+    echo "Restarting Display Manager..."
+    systemctl restart display-manager
+fi

@@ -1,0 +1,17 @@
+{
+  "name": "subarabify",
+  "version": "3.0.2-beta",
+  "description": "SubArabify — subtitle-first Arabic branding pipeline (no AI)",
+  "main": "subarabify.js",
+  "scripts": {
+    "start": "node subarabify.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "parse-torrent-title": "^3.0.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

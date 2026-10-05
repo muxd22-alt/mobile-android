@@ -1,0 +1,1193 @@
+# Changelog
+
+Todas as mudanças relevantes do BC-250 SteamOS Real Toolkit são documentadas
+aqui. As versões seguem [Versionamento Semântico](https://semver.org/lang/pt-BR/)
+(`MAJOR.MINOR.PATCH`) a partir da `v1.0.0`. Mudanças anteriores ficam abaixo
+como histórico datado de antes da adoção de versões numeradas.
+
+🇺🇸 Prefer English? Read the [CHANGELOG.md](./CHANGELOG.md).
+
+## Unreleased
+
+## v1.9.12 — 2026-09-26
+
+**Correções:**
+
+- **Build local do CPU Governor realmente funciona offline** — os hooks
+  PEP-517 do pip rodam dentro do venv *shared* do pipx, não no venv do
+  pacote, então `--no-build-isolation` precisava do
+  `setuptools.build_meta` importável ali e morria com
+  `BackendUnavailable` (a instalação ainda completava pelo fallback
+  isolado, mas desperdiçava um acesso ao PyPI). O installer agora seeda
+  o shared venv — pré-criado com `--system-site-packages`, ou um `.pth`
+  apontando pro site-packages do sistema — então o build local não toca
+  a rede.
+- **Fallback do pipx vendored funciona no python do Arch/SteamOS** —
+  `ensurepip` é desabilitado, então um `python3 -m venv` puro não cria
+  `bin/pip`; o fallback agora cria o venv com `--system-site-packages` e
+  chama `venv/bin/python -m pip`.
+- **Shims `bc250-*` mortos são limpos** — instalações pré-v1.9.9 deixavam
+  symlinks `/root/.local/bin/bc250-apply|bc250-detect` apontando pro
+  `/root/.local/share/pipx` apagado (warnings "already on your PATH");
+  removidos após install/repair.
+- **Atalhos non-Steam mortos após update do SteamOS/Steam** — o scout
+  runtime do Steam pina uma `libcurl.so.4` bundled sem os símbolos
+  versionados `CURL_OPENSSL_4` no `LD_LIBRARY_PATH`; binários do sistema
+  rebuildados (flatpak, AppImages, git) morrem na resolução de símbolo,
+  matando todos os atalhos non-Steam (jogos Steam sobrevivem dentro do
+  pressure-vessel). `steam_repair_pinned_libcurl` agora roda a cada
+  re-apply pós-update e re-aponta pins bundled pra libcurl do host em
+  todos os `/home/*` com Steam.
+
+**Docs:**
+
+- KB: detalhe do PEP-517 no shared venv, notas de venv sem ensurepip,
+  limpeza de shims, e o modo de falha do pinned-libcurl com fix manual.
+- KB: atualização da pesquisa VCN — achados do daveconde/bc250-vcn-enable
+  revisam o veredito "morto" para "power-gated + root-clamped, um latch
+  de isolação não localizado" (caminho documentado, nada shipável ainda).
+
+## v1.9.11 — 2026-09-26
+
+**Correções:**
+
+- **Instalação do CPU Governor funcionando de verdade de novo** — o
+  caminho de build local da v1.9.10 passava `--pip-args
+  --no-build-isolation` como argumento separado, que o argparse do pipx
+  rejeita. Agora usa a forma `--pip-args=`, e cai para a instalação
+  isolada padrão se o build local falhar por qualquer motivo.
+- **Driver VA-API v0.5.1 volta a carregar ("hardware absent")** — o novo
+  driver upstream linka o símbolo versionado `x264_encoder_open_163`, que
+  o `libx264.so.165` do SteamOS não satisfaz (o x264 embute o soname no
+  nome do símbolo). O `DT_NEEDED` faltando derrubava o `dlopen` inteiro —
+  decode incluso — e Moonlight/vainfo não viam hardware. O installer
+  agora confere os deps via `ldd` nos dois `.so` e provisiona o
+  `libx264.so.<N>` exato em `/var/lib/bc250/lib{,32}` (Arch archive para
+  amd64, Debian snapshot para i386), mais `ld.so.conf.d` + `ldconfig`.
+  `vaapi_driver_installed` exige deps resolvidos, então instalações
+  quebradas se auto-curam no reinstall/re-apply. Apps Flatpak também
+  precisam de `LD_LIBRARY_PATH=/var/lib/bc250/lib:/var/lib/bc250/lib32`
+  nos overrides (sandboxes ignoram o ld.so.conf.d do host) — documentado
+  no KB.
+
+## v1.9.10 — 2026-09-25
+
+**Correções:**
+
+- **Guard rígido de kernel** — instalações dependentes de kernel
+  (Combined Fix, GFX1013, audio fix, DS5 bridge, sensores, drivers WiFi)
+  agora se recusam a iniciar em kernels anteriores a 7.2, em vez de
+  falhar no meio do build. O mínimo tinha ficado em 6.18 quando o
+  toolkit migrou pra árvore `linux-neptune-72`, e o caminho do DS5
+  bridge nem guard tinha. A mensagem de bloqueio inclui instruções
+  passo a passo de atualização (Modo Game + terminal) e link pro novo
+  guia do README "Atualizando o SteamOS para o kernel 7.2". Componentes
+  não-dependentes de kernel (governors, swap, mitigations) continuam
+  instalando no 6.18.
+
+- **Instalação do CPU Governor agora resiliente de ponta a ponta** —
+  mais quatro modos de falha no caminho do pipx foram fechados:
+  - `pipx` que sobreviveu a um update do SteamOS só no nome (binário
+    presente, site-packages apagados por um bump de Python) agora é
+    detectado via `pipx --version` e reinstalado, em vez de quebrar no
+    meio da instalação.
+  - O antigo fallback `pip3 install pipx` — que nunca funcionava no
+    SteamOS (escreve no `/usr` read-only) — foi substituído por um pipx
+    autocontido em `/var/lib/bc250/pipx-venv`, que sobrevive a updates
+    e se reconstrói quando quebra.
+  - `python-setuptools` é instalado junto com o pipx, então o pacote do
+    governor compila **sem tocar o PyPI** (`--system-site-packages` +
+    `--no-build-isolation`) — instalação funciona offline ou com rede
+    instável.
+  - `pipx install --force` evita que uma tentativa anterior incompleta
+    bloqueie a reinstalação.
+- Correções de PATH: os hardcodes `/home/deck` restantes agora usam o
+  home do usuário real.
+
+## v1.9.9 — 2026-09-23
+
+**Novidades:**
+
+- **CPU Governor agora sobrevive a updates do SteamOS** — o serviço de
+  overclock morria a cada atualização do sistema (o venv do pipx ficava
+  na partição raiz read-only) e o reparo falhava com "Failed to reinstall
+  bc250_smu_oc via pipx". O venv agora mora em `/var/lib/bc250` junto com
+  o driver de vídeo, então updates não o apagam mais — e consertar uma
+  instalação já quebrada é uma única execução de Install → CPU Governor.
+- **Investigação de decode por hardware no VCN: encerrada** — o bloco VCN
+  do BC-250 está eletricamente morto (provado em nível de registrador: a
+  primeira leitura de registrador de status trava o fabric PCIe e para a
+  CPU). Decode de vídeo por hardware não é alcançável nesta placa; o
+  caminho recomendado pra decode cliente é software (FFmpeg ≈ 510 fps a
+  1080p60 HEVC vs ~30 fps do decoder por compute do toolkit). As entradas
+  temporárias de teste do VCN foram removidas do menu de boot.
+- **Docs do driver de vídeo** — o item VA-API agora é apresentado como
+  driver de vídeo completo (o upstream v0.5.0 adiciona decode bit-exact
+  de H.264/HEVC incl. Main10 + scaling VideoProc), mais uma receita de
+  `flatpak override` pra apps em sandbox como Moonlight carregarem o
+  driver, e uma nota de requisito SteamOS Beta/Preview nos READMEs (o
+  toolkit mira o kernel `7.2.4-valve1-1-neptune-72`, não o SteamOS 3.8
+  estável).
+
+**Detalhes técnicos:**
+
+- **Corrigido:** novo wrapper `bc250_pipx` — todas as chamadas pipx do
+  CPU governor agora usam `PIPX_HOME=/var/lib/bc250/pipx` +
+  `PIPX_BIN_DIR=/var/lib/bc250/bin` em vez do `/root/.local/share/pipx`
+  padrão, que fica no rootfs A/B read-only. O caminho de reparo não
+  precisa mais de `steamos-readonly disable`, remove o `pipx reinstall`
+  (quebrado pra pacotes instalados de path local) e reinstala o próprio
+  pipx primeiro quando o update apagou o binário. O revert limpa os dois
+  homes de venv (novo e legado).
+- **Removido:** entradas de teste do VCN ungate no GRUB (reg-only /
+  probe / FULL) — o param em estágios `amdgpu.bc250_vcn_ungate` continua
+  no build `--vcn` pra diagnóstico manual, inerte no `=0` padrão.
+- **Alterado:** `bc250-vcn-ungate.patch` passa a ser só diagnóstico —
+  níveis de bring-up em estágios (1 reg-only, 2 probe/sem-MMIO, 3 full),
+  ucode VCN fora do `ip_fw_load` do PSP, e breadcrumbs `BC250_VCN_STEP`
+  por estágio que também persistem o nome do estágio na variável EFI
+  `BC250VcnStep` — o breadcrumb em NVRAM que sobreviveu a um travamento
+  total de CPU e provou o bloco morto (leitura de `mmUVD_PGFSM_STATUS`).
+  `build.sh` agora reseta `amdgpu_psp.c` junto com os demais arquivos VCN.
+- **KB:** `.kb/vcn.md` documenta o veredito completo e as técnicas de
+  captura usadas no caminho (perda do tail do journald no wedge do
+  fabric, morte do pipeline de display, breadcrumb em variável EFI,
+  `fbcon=vc:4-6` escondendo o console verbose).
+
+## v1.9.8 — 2026-09-22
+
+**Novidades:**
+
+- **Tela preta ao trocar de sessão corrigida** — um novo patch de
+  display re-detecta o link quando a tela fica apagada por >3s, o que
+  resolve a tela escura ao alternar entre Desktop Mode e Game Mode por
+  um adaptador DP→HDMI 2.1 (ativo por padrão, ajustável via
+  `amdgpu.cs_relink_ms`).
+- **Correção para adaptador UGREEN/CH7218** — o opt-in
+  `amdgpu.bc250_ch7218_quirk=1` impede o adaptador de perder o DSC após
+  troca de modo ou standby (o caso da "tela doida"). Desligado por
+  padrão; adicione ao kernel command line só se tiver esse adaptador.
+- **Experimental `amdgpu.bc250_pcon_force_dsc=1`** — para adaptadores
+  PCON que escondem completamente o decoder DSC (ex.: Cable Matters
+  VMM7100).
+- **Suporte ao co-processador PSP/CCP** — o secure processor do BC-250
+  agora é vinculado (série de patches a caminho do upstream;
+  preparação para trabalho futuro de VCN).
+- **`BC250_NO_PREBUILT=1`** — defina antes do `start.sh` ou do
+  `patch-driver.sh` para forçar build local do kernel e do Mesa.
+
+**Detalhes técnicos:**
+
+- **Adicionado:** `bc250-cs-relink-after-long-blank.patch` — quando um
+  link DP→HDMI PCON fica em blank longo (>3s, configurável via
+  `amdgpu.cs_relink_ms`, mais `cs_relink_delay_ms`,
+  `cs_relink_cooldown_ms`, `cs_relink_at_boot`, `cs_relink_debug`) as
+  caps em cache são descartadas e a detecção roda de novo, recuperando
+  a imagem após transições KDE↔gamescope e standbys longos.
+- **Adicionado:** `bc250-ch7218-pcon-quirk.patch` — força
+  `DISPLAY_DONGLE_DP_HDMI_CONVERTER` quando o firmware do adaptador
+  mente, re-asserta os tetos de 12 bpc / FRL 48 Gbps / YCbCr e restaura
+  `DSC_SUPPORT` quando o firmware limpa o bit mas ainda anuncia um
+  decoder DSC. Totalmente controlado por `amdgpu.bc250_ch7218_quirk`
+  (padrão 0).
+- **Adicionado:** `bc250-pcon-force-dsc.patch` — opt-in experimental
+  (`amdgpu.bc250_pcon_force_dsc=1`) que anuncia um decoder DSC para
+  PCONs que o omitem do firmware.
+- **Adicionado:** `bc250-psp-ccp.patch` — vincula o PSP/CCP do BC-250
+  (PCI 1022:143e); sempre aplicado, sem gate de runtime.
+- **Alterado:** os três patches de display vão junto do `--dsc` (ordem:
+  PCON → DSC → DSC_BPP → FRL_BPC → CH7218 → FORCE_DSC → RELINK); o
+  PSP/CCP fica no grupo always-applied.
+- **Adicionado:** `BC250_NO_PREBUILT=1` — honrado pelo
+  `patch-driver.sh` (igual a `--no-prebuilt`) e propagado pelo
+  `runuser` no `start.sh`; também faz `gfx1013_try_mesa_prebuilt`
+  pular o Mesa prebuilt, então um build 100% local fica a uma env de
+  distância.
+- **Nota:** o artefato `prebuilt` de kernel publicado ainda NÃO inclui
+  esses patches — será atualizado após validação em hardware
+  (`package-prebuilt.sh --upload`).
+
+## v1.9.7 — 2026-09-20
+
+**Novidades:**
+
+- **Instalação muito mais rápida** — o toolkit agora baixa um
+  `amdgpu.ko` e um Mesa patchado pré-compilados que correspondem
+  exatamente ao seu kernel e opções, em vez de compilar (~30 min →
+  segundos). Se nada combinar, cai para a compilação local
+  automaticamente.
+- **Rollback automático se o driver quebrar o boot** — antes de trocar
+  o driver de vídeo, o kernel+initramfs originais são salvos e uma
+  entrada "pre-install kernel+initramfs" aparece no menu de boot.
+- **Menu de recovery ativado por padrão** — as entradas de recovery do
+  GRUB agora são instaladas junto com qualquer fix de driver, sem
+  precisar ir ao menu Extras.
+- **Entrada "reverter toolkit" removida do boot** — ela não conseguia
+  rodar quando o kernel falhava mesmo; a entrada de snapshot cobre esse
+  caso.
+
+**Detalhes técnicos:**
+
+- **Adicionado:** caminho rápido de `amdgpu.ko` pré-compilado no
+  `patch-driver.sh` — baixa `amdgpu-<uname -r>.ko.zst` + `.sha256` +
+  manifesto `.flags` do release `prebuilt` do GitHub; só instala com
+  match exato de kernel + conjunto de flags, e o `install.sh` ainda
+  revalida vermagic/ABI. `--no-prebuilt` força build local.
+  `package-prebuilt.sh` empacota/publica os artefatos.
+- **Adicionado:** Mesa pré-compilado — `package-mesa-prebuilt.sh` tara
+  `/opt/bc250-gfx1013/<VERSION>` (64+32-bit);
+  `install-mesa-prebuilt.sh` extrai e define `VK_DRIVER_FILES` com
+  fallback pro ICD 32-bit stock; `start.sh` tenta antes do
+  `build-mesa.sh`. Mesa/toolkit/mesh precisam bater exatamente com o
+  manifesto; glibc é mínimo (compatível pra frente).
+- **Adicionado:** `stock_boot_backup()` no `install.sh` salva
+  `/boot/vmlinuz-<preset>` + `initramfs-<preset>.img` em
+  `/boot/bc250-backup/` antes de tocar no módulo; quando já existe um
+  override instalado, rebuilda um initramfs stock uma vez para o
+  snapshot sempre carregar o amdgpu original. O script grub.d emite uma
+  entrada extra que bota esse snapshot enquanto ele existir.
+- **Alterado:** a entrada GRUB de `bc250.revert_all=1` foi removida (a
+  unit oneshot precisa de userspace funcionando — inútil num kernel
+  travado); o flag continua utilizável digitado manualmente e a unit
+  segue instalada. As recovery entries agora são auto-instaladas (modo
+  `auto`) após todo install que troca o módulo do kernel.
+- **Corrigido:** `--no-ss` não entra mais na assinatura de flags do
+  prebuilt em kernels >= 7.2 (o patch já é upstream, então o Combined
+  Fix sempre gerava `... no-ss` e errava o artefato publicado).
+- **Corrigido:** aborts de SIGPIPE sob `pipefail` nos scripts novos —
+  `ldd | head` e `tar -tf | grep -q` saíam com 141; a saída agora é
+  capturada primeiro / comparada em bash.
+
+## v1.9.6 — 2026-09-20
+
+**Novidades:**
+
+- **Encode de vídeo acelerado por hardware** — nova opção de driver
+  VA-API (opção 14 do menu + Install All) habilita gravação e streaming
+  em H.264/HEVC no Sunshine, Steam Link e FFmpeg, mesmo com o encoder de
+  hardware do BC-250 desativado de fábrica.
+- **4K120 via adaptadores DP→HDMI 2.1 corrigido** — acabou a tela preta
+  e os artefatos no cold boot ou ao iniciar direto no Game Mode; o
+  toolkit agora limita automaticamente a profundidade de cor ao que a
+  sua TV/adaptador realmente suporta.
+- **Experimentos de DSC mais confiáveis** — o override de
+  `dsc_bits_per_pixel` no debugfs agora persiste mesmo com a tela
+  desligada ou em transição.
+
+**Detalhes técnicos:**
+
+- **Adicionado:** Instalação do driver VA-API de encode (opção manual 14 +
+  etapa do Install All). Baixa o `releases/latest` do
+  simpmix/bc250-encoding-decoding-fix — um driver VA-API que encoda
+  H.264/HEVC com compute shaders Vulkan + SIMD de CPU, já que o bloco VCN do
+  BC-250 vem desativado de fábrica. Driver e shaders ficam em
+  `/var/lib/bc250` (sobrevive a updates do SteamOS) com
+  `LIBVA_DRIVER_NAME=bc250` definido via `/etc/environment.d` — só encode,
+  para Sunshine/Steam Link/FFmpeg. O módulo de áudio DKMS do pacote não é
+  instalado de propósito.
+- **Adicionado:** `bc250-dsc-debugfs-bpp-sticky.patch` — o write do
+  `dsc_bits_per_pixel` no debugfs agora é gravado em `dsc_settings` mesmo
+  sem stream ativa no conector, tornando o override confiável com a tela
+  desligada ou em transição para experimentos de DSC.
+- **Adicionado:** `bc250-pcon-frl-bpc-cap.patch` — corrige a falha de
+  4K120 em cold boot via PCON CH7218. O PCON decodifica o DSC e re-encoda
+  FRL descomprimido para a TV; a validação do DC só checa o orçamento do
+  link DP, então 4K120 RGB a 16 bpc (default do driver quando nada define
+  `max_bpc`, ex.: boot direto no gamescope) valida a ~57 Gbps contra os
+  40 Gbps do FRL5 da Q80A e a imagem morre. O patch limita o
+  `requested_bpc` em links DP→HDMI-converter ao que cabe no orçamento FRL
+  anunciado pelo sink. O caminho KDE→gamescope funcionava porque o kwin
+  persiste `max_bpc=10` no conector e o gamescope herda.
+- **Investigação:** 4K120 no gamescope via PCON CH7218 — logs capturados
+  mostram DSC engatando corretamente em 3840x2160@120 (12 bpp, link Good)
+  nos caminhos que falham e que funcionam; a variável discriminante era a
+  profundidade de cor de saída (bpc=16 falha vs bpc=10 funciona), não o
+  bpp do DSC. Ver `.kb/display.md`.
+- **Adicionado (experimental, oculto):** `bc250-vcn-ungate.patch` — patch
+  somente de pesquisa que remove os três portões do driver no VCN 2.0.3
+  (skip do ip-block na discovery, harvest mask, prefixo de ucode) para o
+  `vcn_v2_0` tentar um bring-up MMIO direto com o firmware `navi10_vcn`.
+  Fica atrás do parâmetro `amdgpu.bc250_vcn_ungate=1` (default desligado —
+  o kernel bota normal) e foi propositalmente deixado fora do menu do
+  Combined Fix: a versão incondicional impediu o boot. Testar apenas via
+  `patch-driver.sh --vcn`. O caminho PSP GPCOM foi investigado
+  exaustivamente e está fechado nesta plataforma. Ver `.kb/vcn.md`.
+
+## v1.9.5 — 2026-09-19
+
+- **Alterado:** O "AC-3 Surround" agora instala seu próprio profile set ACP
+  tunado (`bc250-hdmi-ac3.conf`) em vez de depender do `hdmi-ac3.conf` stock.
+  O profile set é o transporte stock comprovado com o bitrate adicionado: o
+  plugin a52 aceita RATE e BITRATE posicionais, então
+  `plug:{SLAVE="a52:%f,'hw:%f,3',48000,640"}` eleva o encoder do default de
+  448 kbps — que produzia aspereza audível nos agudos — ao máximo do AC-3,
+  640 kbps. O slave continua o `hw:` puro e nenhum wrapper IEC61937/AES é
+  usado; o receiver trava Dolby Digital pelo sync word do AC3. Os nomes de
+  perfil ACP não mudam (`output:hdmi-ac3-surround`), e o arquivo stock não é
+  tocado.
+- **Corrigido:** A regra do WirePlumber que define
+  `api.alsa.start-delay = 1536` (sem a qual o plugin a52 dá EPIPE em todo
+  início de playback) nunca casava: ela casava por `alsa.name`, que o plugin
+  a52 reporta vazio. Agora casa por `node.name = "~alsa_output.*ac3.*"`,
+  independente do nome do backend.
+- **Alterado:** Texto de ajuda do FSR4 atualizado para os pacotes atuais do
+  MastaG — a bridge padrão agora é a RC11 do fork BC-250; RC9 e RC10 continuam
+  selecionáveis por jogo via `PROTON_USE_OPTISCALER=fsr411rc9` /
+  `fsr411rc10`. Os pacotes Proton já trazem esse payload; só a documentação
+  ainda dizia que o padrão era RC10. O plugin Decky "BC-250 FSR4 Launch
+  Options" foi atualizado junto — agora lista o padrão fsr411f RC11,
+  `signed`, `fsr411b`, `fsr411rc9` e `fsr411rc10`.
+- **Corrigido:** A lista de reset-para-pristine do `build.sh` agora cobre
+  todos os arquivos que o stack de patches toca — `amdgpu.h`,
+  `amdgpu_drv.c`, `dc.h`, `link_dpms.c`, `link_dp_training.c`,
+  `link_hdmi_frl.c` e `smu_types.h` estavam faltando, então uma árvore
+  parcialmente patchada podia deixar o próximo build em estado misto.
+
+## v1.9.4 — 2026-09-17
+
+- **Adicionado:** Entradas de recovery no GRUB (Extras → "GRUB Recovery
+  Entries"). Instaladas como primeiro passo do Install All, e gerenciadas a
+  qualquer momento em Extras → "GRUB Recovery Entries". Duas entradas extras
+  aparecem no menu do GRUB, emitidas por um script
+  `/etc/grub.d/42_bc250-recovery`, então o grub-mkconfig as regenera em todo
+  `update-grub` — incluindo os disparados por updates do SteamOS — e elas
+  sempre acompanham o kernel atual: *"HDMI21-DSC patch OFF"* boota com
+  `amdgpu.bc250_hdmi21=0` para telas que ficam pretas com o patch DSC/PCON do
+  Combined Fix; *"REVERT TOOLKIT"* boota com `bc250.revert_all=1`, executa o
+  revert completo do toolkit sem interação (params do GRUB, serviços, override
+  do amdgpu.ko — com fallback de revert de emergência autocontido se a pasta do
+  toolkit não existir) e reboota na config stock. O mesmo script emite `set
+  timeout`/`timeout_style` para mostrar o menu por 1 s no boot por padrão — o
+  SteamOS esconde o menu (o `00_header` hardcoda `timeout=0` e o
+  `steamenv_init` ignora o `GRUB_TIMEOUT`, então em hardware sem o botão "..."
+  do Deck o menu nunca aparece). Visibilidade e timeout do menu são prefs do
+  usuário guardadas em `~/.bc250-toolkit/recovery-menu.conf`, lidas pelo
+  script grub.d em tempo de grub-mkconfig; o submenu em Extras liga/desliga o
+  menu e muda o timeout (1–30 s). (O SteamOS usa GRUB, não BLS —
+  `/boot/loader/entries` não existe e o conjunto de módulos não tem `blscfg` —
+  então as entradas são menuentries comuns, não arquivos `.conf` BLS.)
+- **Corrigido:** `GRUB_CFG` estava fixo em `/boot/grub/grub.cfg`, que não existe
+  no SteamOS (o `update-grub` dele escreve `/efi/EFI/steamos/grub.cfg`). A poda
+  de módulos ausentes e o reparo de boot-hang liam/patcheavam o arquivo errado
+  e eram no-ops silenciosos. O caminho agora é detectado.
+- **Adicionado:** flag `start.sh --revert-all` não-interativa (usada pela
+  entrada de recovery; `AUTO=1`, errexit desabilitado para um componente
+  falho não abortar o processo).
+- **Corrigido:** `print_warning` era chamada em vários pontos mas nunca definida.
+
+- **Corrigido:** Travamento de boot no GRUB no SteamOS 3.9.x — `error: file
+  '/boot/grub/x86_64-efi/efi_uga.mod' not found` seguido de `Press any key to
+  continue...`, que num console sem teclado trava o boot para sempre. Builds
+  novos do GRUB emitem `insmod efi_uga` incondicionalmente em EFI, mas o
+  conjunto reduzido de módulos da Valve não inclui `efi_uga.mod`. O toolkit
+  agora grava `GRUB_VIDEO_BACKEND=efi_gop` em `/etc/default/grub` (persistido
+  entre updates do SteamOS), então todo `grub-mkconfig` futuro carrega apenas
+  `efi_gop`, e comenta qualquer linha `insmod` no `grub.cfg` que referencie um
+  módulo ausente de `/boot/grub/*-efi` — repara configs já geradas e cobre
+  módulos que `GRUB_VIDEO_BACKEND` não controla. Aplicado automaticamente no
+  Install All e no re-apply pós-update; também disponível manualmente em
+  Extras → "Fix GRUB Boot Hang".
+
+## v1.9.3 — 2026-09-15
+
+- **Alterado:** Patches de display DSC + HDMI 2.1 PCON substituídos pelas versões
+  upstream (TeleBooth), agora controlados por um único parâmetro de kernel
+  `amdgpu.bc250_hdmi21` (ligado por padrão; `amdgpu.bc250_hdmi21=0` restaura um
+  kernel não-patcheado, caminho por caminho). Os dois patches são aplicados como
+  uma unidade pelo Combined Fix — as antigas opções separadas "DSC Enable" e
+  "DSC PCON HDMI 2.1" agora são uma só. Requer um adaptador DP→HDMI 2.1; monitor
+  DisplayPort nativo não é afetado. Se a tela ficar preta após instalar, inicialize
+  com `amdgpu.bc250_hdmi21=0` — sem precisar recompilar.
+- **Alterado:** Ambos os patches adaptados ao kernel do SteamOS da Valve
+  (7.2.4-valve1-1-neptune-72) e verificados para aplicar com zero fuzz, em ordem
+  (PCON primeiro, depois DSC, que depende do campo de config que o patch PCON adiciona).
+- **Alterado:** O bridge FSR4 padrão agora é o RC10 (4.1.1r10) do fork BC-250, que
+  reduz o tempo de setup da compilação de shaders a frio (sem mudança de FPS). O
+  toolkit baixa via os pacotes Proton do MastaG; texto de ajuda atualizado para RC10.
+- **Corrigido:** `amdgpu.cs_legacy_8core_metrics=1` não é mais oferecido às cegas
+  no kernel 7.x. O toolkit agora lê `/sys/class/dmi/id/bios_version` e decide: BIOS
+  stock (`P3.00`) precisa do layout legado de telemetria de 8 cores, BIOS modded
+  (a community BIOS atual carrega o patch de telemetria SMU) não — e se o parâmetro
+  já estiver no GRUB numa placa modded, o toolkit oferece removê-lo. No firmware
+  patcheado o decode legado faz a maioria das temperaturas por-core ler 0, que é o
+  que vários usuários da comunidade encontraram após instalar.
+- **Docs:** adicionado `docs/dsc-hdmi21-pcon.md`; o doc depreciado de YCbCr 4:4:4 FRL
+  agora aponta para ele.
+
+## v1.9.2 — 2026-09-15
+
+- **Corrigido:** Dual-output audio (opção 12) atualizado para MastaG v0.14.
+  E-AC-3 removido completamente (binário helper, serviço systemd e todos os
+  caminhos de código do árbitro WirePlumber), seguindo o upstream. AC-3 é agora
+  o único modo codificado.
+- **Corrigido:** Perda de sync intermitente e clipping de áudio durante
+  playback AC-3 — restaurados os parâmetros de timing do upstream
+  (`switch-delay-ms` 500→1000, `api-alsa-start-delay` 1024→1536,
+  `startup-settle-ms` 1000→1500) que estavam agressivos demais no v0.13 e
+  podiam causar corridas de EBUSY em `hw:Generic,3`.
+- **Corrigido:** Combined Fix (opção 10) saindo silenciosamente quando
+  ferramentas de build (`make`/`gcc`/`patch`) estavam faltando — agora
+  instala `base-devel` automaticamente e mostra o log de diagnóstico +
+  instruções de suporte em caso de falha, em vez de sair sem mensagem.
+- **Alterado:** Referências de bitrate AC-3 atualizadas de 448 para 640 kbps
+  (a config ALSA já usava 640). Installer não requer mais
+  `ffmpeg`/`aplay`/`dd` (necessários apenas para o path E-AC-3 removido).
+
+## v1.9.1 — 2026-09-13
+
+- **Adicionado:** Variante `proton-cachyos-slr-bc250` (CachyOS em Steam Linux
+  Runtime) para jogos com anti-cheat (EAC/BattlEye) — opção 3 no menu FSR4
+  Proton.
+- **Adicionado:** Plugin Decky "BC-250 FSR4 Launch Options" — painel no Quick
+  Access Menu com cópia em um toque das launch options de FSR4/OptiScaler.
+  Opção 4 no menu FSR4 Proton (menu 13).
+- **Adicionado:** `PROTON_OPTISCALER_NAME` e `BC250_OPTISCALER_EXTRA`
+  documentados no prompt pós-instalação (spoof de DLSS/Reflex via
+  `Spoofing.Dxgi=true`).
+- **Corrigido:** Compilação do driver WiFi AIC8800 no kernel 7.2 — atualizadas
+  9 assinaturas de cfg80211_ops (`net_device*` → `wireless_dev*`), corrigido
+  acesso a union anônima do `ieee80211_mgmt` no TDLS, `strncpy` substituído
+  por `memcpy`, corrigidos warnings `-Wrestrict` nos arquivos platform/compat.
+- **Alterado:** Upscaler FSR4 padrão agora é `fsr411f` RC9 (sem necessidade de
+  `PROTON_USE_OPTISCALER` explícito); opção `signed` usa o build FSR4 assinado
+  da AMD.
+- **Alterado:** Patches de audio reorganizados — removidos patches obsoletos de
+  YCbCr 4:4:4, VRR, ALLM, FRL hot-plug e clock de audio DP (não mais necessários
+  pois os patches de DSC + PCON HDMI 2.1 os substituem). Adicionados
+  `bc250-dcn201-dsc-enable` e `bc250-dcn201-pcon-hdmi21` baseados na investigação
+  de registradores DCN/DSC por [alex-reid](https://gist.github.com/alex-reid/b55328c246ade7baef8566fb2cadea9b).
+
+## v1.9.0 — 2026-09-12
+
+- **Adicionado:** FSR4 Proton instalar/reverter (menu 13/13R) — baixa o
+  Proton pré-compilado do MastaG para a partição home (evita limites de
+  espaço do root do SteamOS), três variantes: GE, Native e SLR (Steam
+  Linux Runtime para compatibilidade com anti-cheat EAC/BattlEye).
+- **Adicionado:** OpenLinkHub como item opcional no menu Extras — controle
+  do Corsair iCUE LINK Hub (RGB, fans, AIO) via interface web, com
+  persistência após atualizações do SteamOS.
+- **Adicionado:** Patch VRR VTEM em TMDS no kernel para suporte VRR em
+  HDMI 2.1.
+- **Adicionado:** Patches FSR4 V3+ no Mesa (0006-0009) para as séries
+  mesa e mesa-native-mesh.
+- **Adicionado:** Verificação de versão mínima SteamOS 3.9 / kernel 7.x —
+  avisa usuários em versões mais antigas para atualizar para beta preview
+  ou usar o toolkit v1.7.3.
+- **Alterado:** Dual-audio simplificado para AC3-only (MastaG v0.13) —
+  E-AC3 (Dolby Digital Plus) removido por estabilidade.
+- **Alterado:** Bitrate do AC-3 aumentado de 448 kbps para 640 kbps
+  (máximo ATSC A/52).
+- **Alterado:** VRR e ALLM agora visíveis no checklist do combined fix em
+  todas as versões de kernel (antes restrito a kernel < 7).
+- **Alterado:** Menu de patches do combined fix reorganizado com
+  descrições agrupadas; PCON FRL Hotplug e YCbCr 444 marcados como
+  experimentais.
+- **Alterado:** Patch de DP spread spectrum auto-pulado em kernel >= 7.2
+  (upstream).
+- **Corrigido:** Desbloqueio de cores CPU agora aceita máscaras não-padrão
+  (ex. 0xB7) em vez de abortar — o write do SMU define todos os 8 bits
+  independente da máscara inicial. O core unlock também é não-fatal no
+  Install All, então o GPU CU unlock e outros passos prosseguem mesmo se
+  falhar.
+- **Corrigido:** Hunk do patch YCbCr 4:4:4 aplicando dentro de
+  `dm_validate_stream_and_context` — adicionada linha de contexto `do {`
+  que faltava.
+- **Corrigido:** Revert do dual-audio agora restaura WirePlumber stock e
+  alsa-card-profiles (estava quebrando o AC-3 Surround opção 11 após
+  desinstalar o dual audio).
+- **Corrigido:** Combined revert agora limpa todos os parâmetros GRUB e
+  configs de modprobe adicionados pela instalação (freesync_pcon,
+  hpd_debounce, cs_legacy_8core_metrics, ycbcr444, EDID legacy).
+- **Corrigido:** Patch ALLM DP-connector agora protegido com `WITH_ALLM`
+  — era aplicado incondicionalmente (bug).
+- **Corrigido:** Função `audio_fix_remove_hpd_debounce_grub_param`
+  adicionada (era referenciada mas nunca definida).
+
+## v1.8.5 — 2026-09-06
+
+- **Adicionado:** Suporte E-AC3 (Dolby Digital Plus / DD+) no dual-output audio,
+  atualizado para MastaG v0.12 — requer modo de áudio da BIOS em HDA.
+- **Corrigido:** Fontes estéreo em E-AC3 saindo apenas no canal central — ordem
+  dos canais agora segue o layout 5.1 nativo do FFmpeg (FL FR FC LFE RL RR)
+  e o filtro pan foi removido.
+- **Corrigido:** Atraso de ~1 segundo no modo E-AC3 — buffer de reprodução ALSA
+  reduzido do padrão (~300-500 ms) para 60 ms via `--buffer-time=60000`.
+- **Alterado:** Configs de dual-audio adaptadas para caminhos persistentes
+  `~/.config/` no SteamOS e nomes de sink amigáveis ao gamescope
+  (`dolby_digital_ac3`, `dolby_digital_plus`).
+
+## v1.8.4 — 2026-09-05
+
+- **Adicionado:** Dual-Output Audio BC-250 (MastaG v0.8) — AC3 nativo via
+  WirePlumber (Dolby Digital 5.1 @ 448 kbps) + HDMI com guarda de hotplug.
+  Requer WirePlumber 0.5.17 (incluído no toolkit). Disponível como opção de
+  instalação manual junto ao AC-3 Surround Encoding existente.
+- **Adicionado:** Opção Boot 1440p120 no checklist de instalação combinada —
+  configura `video=DP-1:2560x1440@120` no GRUB para o display iniciar em
+  1440p@120.
+- **Adicionado:** Seleção individual de patches via flags `--no-*` no build
+  combinado de kernel (ex. pular VRR, ALLM ou YCbCr 444 independentemente).
+- **Adicionado:** Override de EDID para PCON HDMI 2.1 (Samsung Q80A) — injeta
+  HF-VSDB com FRL 48 Gbps, VRR 48-120, ALLM quando o dongle PCON não repassa.
+- **Adicionado:** Perfil de sessão gamescope + parâmetro GRUB `allm_mode`
+  para BC-250.
+- **Alterado:** Build do Mesa reformulado — suporte 32-bit corrigido, drivers
+  gallium restaurados, video codecs desativados, Mesa 26.2.2 com a série de
+  patches rebased do MastaG. Patch FSR4 V3 atualizado para o resultado de
+  bissecção de hardware.
+- **Alterado:** Item YCbCr 4:4:4 do checklist renomeado para "YCbCr 444"
+  (dois-pontos quebravam o `pick_items`). Force params agora ativados via
+  modprobe.d quando o patch é selecionado.
+- **Corrigido:** Sink AC3 agora visível nas configurações de áudio do Steam
+  Game Mode (`node.virtual=false`, `device.class=sound`).
+- **Corrigido:** Propriedades ALLM agora anexadas aos conectores DP para o
+  PCON do BC-250.
+- **Corrigido:** Revert do boot mode adicionado aos caminhos de revert
+  (10R + Revert All).
+- **Corrigido:** Limpeza de leftovers antigos de surround-profile.conf e
+  hdmi-ac3.conf durante a instalação do dual-audio.
+- **Corrigido:** Persistência do dual-audio após reboot — `dual_audio` agora
+  incluído no `reapply_installed_components` para o toolkit reinstalar se o
+  rootfs perder os arquivos.
+- **Removido:** Suporte a E-AC3 (Dolby Digital Plus) do dual-audio — apenas
+  AC3 (Dolby Digital) é mantido por estabilidade.
+
+## v1.8.3 — 2026-09-01
+
+- **Corrigido:** Case label `DC_NO_DP_LINK_BANDWIDTH` duplicado no patch YCbCr 4:4:4
+  causava erro fatal de compilação (`duplicate case value`). Afetava todos os
+  usuários que buildaram a partir do release v1.8.2.
+- **Corrigido:** `force_ycbcr444=1` não força mais 4:4:4 incondicionalmente — agora
+  só aplica quando FRL está negociado para o modo. Corrige instabilidade de sync
+  no gamescope em resoluções diferentes de 1440p120 (ex. 4K60, 1080p).
+- **Alterado:** Config padrão do modprobe agora ativa apenas `dcfeaturemask=0x402`
+  (FRL). `force_ycbcr444=1` e `force_min_bpc=10` não são mais ativados por padrão —
+  o driver auto-negocia encoding e profundidade de cor por modo. Corrige perda de
+  sync ao mudar color range no gamescope (auto → full) e cores estouradas por
+  conflito com a colorimetry BT2020_RGB do gamescope. Os module params continuam
+  disponíveis para uso manual avançado.
+
+## v1.8.2 — 2026-08-31
+
+- **Adicionado:** Perfil WiFi AIC8800DC/DW `legacy-mcu1` para adaptadores antigos
+  que reportam `chip_id=7, chip_mcu_id=1` (ex. Tenda W311MI WiFi 6 USB). Usa o
+  conjunto pre-SDK-V5/V3 de driver e firmware validado upstream. Opt-in via
+  Extras → AIC8800 → L.
+- **Adicionado:** Ejeção automática do disco virtual `a69c:5721` para adaptadores
+  Tenda AIC8800DC que reaparecem como dispositivo WiFi `2604:0013`.
+- **Corrigido:** Persistência de atualizações do SteamOS agora registra o perfil
+  AIC8800 selecionado, evitando que o perfil D80 sobrescreva uma instalação
+  legacy-MCU1 funcional durante reaplicação automática.
+- **Corrigido:** Instalação do CPU Governor não falha mais no SteamOS Main quando
+  `python-pipx` não está disponível via pacman — agora faz fallback para `pip3 install pipx`.
+- **Corrigido:** Prompt de telemetria (`cs_legacy_8core_metrics=1`) agora aparece
+  durante a instalação manual do Combined Fix no kernel 7.x. Antes era pulado
+  porque `nproc` retornava apenas os núcleos ativados (Core Unlock pode não ter
+  sido aplicado ainda).
+- **Corrigido:** Patch YCbCr 4:4:4 deep color agora é ignorado em kernels < 7.x
+  (foi escrito para 7.2 apenas e causava erro fatal de build no 6.18).
+- **Corrigido:** Três erros de compilação no patch YCbCr 4:4:4 (cabeçalhos de
+  hunk malformados, `DC_LOG_DC` usado em arquivo sem `DC_LOGGER`, chave sem
+  par, `do {` duplicado).
+
+## v1.8.1 — 2026-08-30
+
+- **Adicionado:** Suporte a **YCbCr 4:4:4 deep color + HDMI 2.1 FRL** via
+  adaptadores PCON DP-HDMI (ex. Ugreen CH7218). O amdgpu.ko patcheado agora
+  inclui:
+  - `amdgpu.force_ycbcr444=1` — força a codificação de pixels YCbCr 4:4:4 em
+    saídas PCON DP-HDMI (o driver original só envia RGB via DP).
+  - `amdgpu.force_min_bpc=10` — fixa a profundidade de cor mínima em 10 bits,
+    evitando fallback silencioso para 8-bit durante a validação de banda.
+  - `amdgpu.dcfeaturemask=0x402` — habilita DC_FRL_MASK (HDMI 2.1 FRL),
+    desativado por padrão no kernel 7.2.
+  - Quirk do CH7218 PCON — restaura a capacidade FRL de 48 Gbps quando o
+    dongle reporta uma topologia de porta downstream malformada.
+  - `dp_hdmi21_pcon_support=true` no DCN201 (Van Gogh) — faltava no kernel
+    original, impedindo a leitura de capacidade FRL.
+  - Deep color usando flags HDMI CTA do EDID (`edid_hdmi_ycbcr444_dc_modes` /
+    `edid_hdmi_rgb444_dc_modes`) em vez de `display_info.bpc` genérico.
+- **Adicionado:** Prompt no toolkit para YCbCr 4:4:4 + FRL ao final da
+  instalação do Combined Fix (cria `/etc/modprobe.d/amdgpu-ycbcr444.conf` e
+  reconstrói o initramfs automaticamente).
+- **Adicionado:** Documentação em `docs/dp-hdmi-ycbcr444-frl.md` com tabelas
+  de largura de banda e guia de troubleshooting.
+- **Resultado:** Com um dongle PCON CH7218 e uma TV com suporte a deep color,
+  **1440p@120 12-bit YCbCr 4:4:4** e **4K@60 12-bit YCbCr 4:4:4** agora são
+  possíveis. 4K@120 4:4:4 é limitado pela banda do DP 1.4 (25.14 Gbps).
+- **Corrigido:** Crash do `compgen -G` em `audio_fix_ensure_mkinitcpio_preset`
+  no kernel 7.x — nenhum preset `linux-neptune-6*` existe, causando exit
+  non-zero sob `set -euo pipefail` e abortando a instalação do Combined Fix.
+- **Corrigido:** Três padrões adicionais de pipe vulneráveis a `pipefail`
+  endurecidos com `|| true` (grep|head na limpeza de cache AUR, pacman|head
+  na detecção de headers, ls|head na extração de firmware BE200).
+- **Alterado:** READMEs reescritos com funcionalidades categorizadas, novos
+  componentes (BE200, DS5 Chord Config, HPD debounce, CU/WGP Live Manager),
+  seção completa de Troubleshooting e seção profissional de Apoio.
+
+## v1.8.0 — 2026-08-29
+
+- **Adicionado:** Suporte ao **SteamOS 3.10 com kernel 7.2** (Valve Neptune).
+  O combined fix agora detecta a versão do kernel e seleciona as variantes
+  de patch corretas automaticamente. Para atualizar para o SteamOS 3.10 /
+  kernel 7.2, ative o Modo Desenvolvedor em Configurações → Sistema →
+  Modo Desenvolvedor, depois ative Canais de Atualização Avançados e troque
+  o canal para **Main**.
+- **Adicionado:** Novo patch de telemetry-cache para kernel 7.2 (do
+  linux-cachyos-bc250 do MastaG) com suporte a telemetria 8-core e
+  parâmetros de cache ajustáveis de gfxclk/activity.
+- **Adicionado:** No kernel 7.x com 8 núcleos desbloqueados, o toolkit
+  agora pergunta se quer adicionar `amdgpu.cs_legacy_8core_metrics=1` ao
+  GRUB se estiver usando BIOS stock (sem patch de SMU), evitando que a
+  temperatura da GPU fique zerada.
+- **Alterado:** Patches de VRR e ALLM são automaticamente pulados no kernel
+  7.x — o kernel 7.2 já possui VRR funcional nativo, então esses patches
+  não são mais necessários.
+- **Corrigido:** `bfd.h` e outros headers removidos pelo SteamOS agora são
+  restaurados pelo `ensure-build-prereqs.sh` usando `pacman --overwrite '*'`,
+  corrigindo falhas de build do objtool no kernel 7.2.
+- **Corrigido:** Nome do módulo `blake2b_generic` no hook steam-deck do
+  mkinitcpio é patcheado para `blake2b` no kernel 7.x (renomeado upstream),
+  corrigindo erros de rebuild do initramfs.
+- **Corrigido:** Detecção de hardware NCT6686/87 não depende mais de
+  `outb`/`inb` (não disponíveis no SteamOS) — usa sysfs, ACPI, probe via
+  modprobe e dmesg como fallback.
+- **Removido:** Opção de limpeza de EDID legado do menu do combined fix
+  (não mais relevante para instalações atuais).
+
+## v1.7.4 — 2026-08-27
+
+- **Adicionado:** Suporte a VRR (Variable Refresh Rate) e ALLM (Auto Low
+  Latency Mode) para adaptadores DP-to-HDMI PCON — habilita **4K120 VRR
+  via HDMI** em TVs como Samsung QN80A e LG C3 OLED ao usar um cabo
+  DP-to-HDMI com chip PCON (ex: CH7218). O `amdgpu.ko` patcheado agora
+  inclui:
+  - **Fallback de parsing AMD VSDB por software**
+    (`parse_amd_vsdb_cea_direct`): lê o AMD Vendor Specific Data Block
+    diretamente do bloco de extensão CEA sem depender do firmware DMUB,
+    detectando capacidades FreeSync mesmo quando o parser do DMUB falha
+    (comum em conexões HDMI via PCON).
+  - **Extensão de range VRR com consciência de LFC**
+    (`extend_range_from_vsdb`): substitui a lógica antiga de
+    `compare_ranges`. Sempre estende o limite superior de refresh rate,
+    mas só estende o limite inferior quando o mínimo atual desabilita
+    LFC (Low Framerate Compensation), evitando blanking em displays onde
+    o fabricante ajustou o VRR min após lançamento.
+  - **ALLM via DP** (`bc250-allm-via-dp.patch`): força
+    `content_type=GAME` no stream de vídeo quando o sink reporta suporte
+    a ALLM no EDID, permitindo que o PCON gere o HF-VSIF
+    autonomamente para ativar o Game Mode da TV.
+- **Adicionado:** O toolkit agora pergunta se quer adicionar
+  `amdgpu.freesync_pcon_allow_all=1` à linha de comando do GRUB após
+  instalar o audio fix (ou combined fix), e oferece remover no revert.
+  Esse parâmetro de kernel é necessário para o VRR funcionar via PCON.
+- **Removido:** Sistema legado de patcheamento de EDID
+  (`patch_edid_vrr.py`) e toda injeção manual de firmware EDID. O
+  toolkit agora limpa qualquer binário de firmware EDID existente
+  (`/lib/firmware/edid/*.bin`) e entradas `drm.edid_firmware=` no GRUB
+  no início da instalação do audio fix, garantindo que o **EDID nativo**
+  do display seja usado. Funciona para qualquer marca de TV (Samsung,
+  LG, Sony, etc.).
+- **Nota:** Usuários que tinham problemas de VRR com cabos DP-to-HDMI
+  PCON (ver [bazzite#4532](https://github.com/ublue-os/bazzite/issues/4532))
+  devem atualizar o firmware do adaptador PCON e reinstalar o audio fix.
+  O range VRR agora é lido corretamente do EDID nativo (ex: VRRmin 40 Hz
+  – VRRmax 120 Hz na LG C3).
+
+## v1.7.3 — 2026-08-24
+
+- **Corrigido:** Auto-reparo do keyring do pacman agora funciona em **qualquer
+  idioma** (espanhol, português, ucraniano, etc.) — todos os comandos
+  pacman/AUR são forçados para `LC_ALL=C`, então a detecção de erros faz
+  match com strings em inglês independente do idioma do sistema. Antes,
+  mensagens localizadas (ex: `depósito de claves` em espanhol) nunca eram
+  detectadas, fazendo o Install All falhar sem tentar o reparo automático.
+
+## v1.7.2 — 2026-08-24
+
+- **Corrigido:** Erros de keyring do pacman em locales não-inglês
+  (ucraniano/russo) agora são detectados e auto-reparados — Install All não
+  falha mais quando o locale do sistema produz mensagens como
+  `в'язка ключів недоступна`.
+- **Corrigido:** Verify My Setup não trava mais após a linha CPU Core Unlock —
+  a chamada do binário `bc250memcfg` agora tem timeout de 5 segundos.
+
+## v1.7.1 — 2026-08-23
+
+- **Corrigido:** Tarball do Mesa 26.2.0-rc3 agora é vendored no repo — o
+  build não falha mais quando `archive.mesa3d.org` está indisponível.
+- **Alterado:** Menu reorganizado — removidas as opções independentes de
+  DP Audio (antiga 7) e GFX1013 (antiga 11), já inclusas no install
+  Combined Audio+GFX1013. Install All agora inclui AC-3 Surround como
+  último passo.
+
+## v1.7.0 — 2026-08-22
+
+- **Melhorado:** Telemetria de atividade da GPU agora usa
+  `amdgpu_fence_count_emitted` (32 amostras) em vez de polling de
+  `GRBM_STATUS` — GRBM_STATUS lê all-ones no Cyan Skillfish, então o
+  `gpu_busy_percent` era não confiável. Fence count é o mesmo sinal que
+  alimenta o `drm-engine-gfx` do fdinfo.
+- **Novo:** Parâmetro de kernel `cs_metrics_cache_ms` (25 ms padrão) para
+  cache de refresh bulk das métricas SMU, equivalente ao MastaG.
+- **Alterado:** Defaults de cache (`cs_gfxclk_cache_ms`,
+  `cs_activity_cache_ms`) reduzidos de 100 ms para 25 ms para telemetria
+  mais responsiva.
+- **Alterado:** Patches de telemetria e tunable-cache consolidados num
+  único arquivo (`bc250-cyan-skillfish-telemetry-cache.patch`) —
+  simplifica o build e garante ordem correta de aplicação.
+- **Interno:** Patch Mesa FSR4 V3 (0005) atualizado com commit header
+  upstream; sem mudanças de código, não precisa rebuild do Mesa.
+
+## v1.6.0 — 2026-08-22
+
+- **Novo:** Instalador de firmware Intel BE200 Wi-Fi 7 adicionado ao
+  menu Extras — baixa e instala o firmware do BE200 para a placa ser
+  reconhecida sem precisar recompilar o kernel.
+- **Novo:** Patch ALLM-via-DP adicionado ao build do audio-fix — envia
+  AVI infoframe com `content_type=Game` via DP SDP para PCONs DP-to-HDMI
+  (ex. CH7218) em Source Control Mode, permitindo o PCON gerar
+  autonomamente o HDMI Forum VSIF com ALLM. Também habilita Source
+  Control Mode e HDMI Link via DPCD. Nota: a ativação do ALLM depende do
+  firmware do PCON; o CH7218 com firmware Dp6.0.30 aparentemente ainda
+  não gera HF-VSIF autonomamente.
+- **Fix:** build do amdgpu agora tenta novamente com `-j1` se o GCC 15.x
+  der erro interno (ICE) durante o build paralelo.
+
+## v1.5.0 — 2026-08-21
+
+- **Novo:** Fix do PS Button do DS5 Bridge — `hid-playstation.ko` patchado
+  para expor `BTN_MODE` no DS5-Linux-Bridge, habilitando chord combos do
+  Steam/Gamescope (PS+Cruz=QAM, PS+Triângulo=Steam overlay) com config
+  customizada de chord VDF no Steam.
+- **Novo:** Patches de Mesa/RADV atualizados com a versão mais recente
+  do MastaG (Ago 2026) — compute queue fix, mesh/task shaders,
+  taskmesh queries e promoção opt-in `RADV_GFX103=1` para GFX10.3
+  todos atualizados.
+- **Novo:** FSR4 V3 deferred SDot hybrid (de dmorazasanchez/bc250-fsr4)
+  substitui o V2 selective sdot — adiciona fusão `iadd(0,SDot)`, cadeias
+  MAD24 e pré-pass denso de SDot para melhor throughput INT8.
+- **Novo:** Opção de native mesh shaders (de lonewolf0622) — shaders
+  MESH-only no GFX10 sem spoofing de GFX10.3. Selecionável na instalação
+  junto com a abordagem mesh/task do MastaG.
+- **Novo:** Patch de EDID VRR para FreeSync via PCON DP→HDMI — zera o
+  VTEM HDMI para evitar flickering, adiciona AMD VSDB v1 para FreeSync.
+- **Corrigido:** Detecção de EDID no sysfs — `[[ -s ]]` reporta tamanho
+  0 em arquivos sysfs; trocado por `wc -c` para o patch VRR funcionar.
+
+## v1.4.0 — 2026-08-19
+
+- **Novo:** Faixa SMU SCLK ampliada para 350–2230 MHz (patch do MastaG),
+  permitindo governors de userspace usarem a faixa completa de clock.
+- **Novo:** Otimização FSR4 dp4a agora usa abordagem seletiva — evita
+  register spilling catastrófico em shaders patológicos mantendo o ganho
+  de performance na maioria dos kernels.
+- **Novo:** Guia de implementação de encoding AC-3 via HDMI para outros
+  sistemas operacionais (documenta o plugin ALSA a52 + PipeWire).
+- **Corrigido:** Instalação do adaptador Xbox (xone-dkms) agora detecta
+  e instala o pacote correto de kernel headers antes de compilar o
+  módulo DKMS.
+- **Removido:** Flags de clock gating (`--cg`/`--cg-unvalidated`) e
+  patches removidos do fix combinado — o recurso era experimental e não
+  validado no hardware BC-250.
+
+## v1.3.1 — 2026-08-17
+
+- **Corrigido:** Instalação/reversão do AC-3 Surround agora funciona
+  corretamente quando o toolkit é executado via `sudo`. Comandos do
+  PipeWire e WirePlumber são executados em um script separado de sessão
+  de usuário (`ac3-user-setup.sh`) como o usuário real, corrigindo
+  falhas e travamentos na detecção da placa de áudio que ocorriam quando
+  `pactl`/`systemctl --user` eram chamados como root.
+- **Corrigido:** Configuração do WirePlumber corrigida para usar
+  `api.acp.disable-pro-audio` em vez de `api.alsa.use-acp`, correspondendo
+  ao perfil de hardware valve-fremont da Valve. A configuração anterior
+  impedia o carregamento do conjunto de perfis `hdmi-ac3.conf`, deixando
+  apenas perfis genéricos `on`/`off`.
+- **Novo:** Status do AC-3 Surround agora exibido em "Verificar Minha
+  Instalação" (opção V) com uma seção de Áudio dedicada mostrando se o
+  AC-3 está instalado e se o perfil está atualmente ativo.
+- **Alterado:** Logs do toolkit (trace, execução, erro, diagnóstico) agora
+  salvos em `<diretório-toolkit>/logs/` em vez de `~/.bc250-toolkit/logs/`.
+  Logs de erro ainda são copiados para a Área de Trabalho em caso de falha.
+
+## v1.3.0 — 2026-08-17
+
+- **Novo:** Codificação AC-3 Surround via HDMI — ativa codificação Dolby
+  Digital 5.1 em tempo real por HDMI/DisplayPort via eARC. Antes era
+  impossível no SteamOS com o BC-250 porque o perfil de hardware que
+  carrega os perfis de áudio AC-3 nunca era ativado (o DMI do BC-250
+  identifica como "AMD BC-250" em vez de "OEM F7F" da Valve). Isso
+  instala uma regra udev e uma configuração do WirePlumber que ativa o
+  conjunto de perfis `hdmi-ac3.conf` nativo, criando um sink 5.1 que
+  codifica todo o áudio para AC-3 via o plugin `a52` do ALSA. Funciona
+  com qualquer adaptador DisplayPort-para-HDMI ativo (não é específico
+  de marca). Latência zero adicionada, ~1-2% de overhead de CPU. Conteúdo
+  stereo é automaticamente upmixado para 5.1. O sink permanece ativo por
+  1 hora após o último som para evitar que o receiver volte para PCM.
+  Após instalar, selecione "HD-Audio Generic Digital Surround 5.1
+  (HDMI/AC3)" nas configurações de dispositivo de áudio do KDE (Modo
+  Desktop) para ativar a saída Dolby Digital. Disponível como opção
+  13/13R no menu.
+
+## v1.2.2 — 2026-08-16
+
+- **Corrigido:** Falha na compilação do Mesa em alguns sistemas SteamOS —
+  dependências de build ausentes (`zstd`, `glslang`, `python-yaml`) agora
+  são instaladas automaticamente, e a flag `--needed` foi removida para
+  que o pacman reinstale pacotes cujos arquivos `.pc` e headers foram
+  removidos da imagem do SteamOS.
+- **Corrigido:** Verificação pós-instalação agora confirma que os
+  arquivos pkgconfig críticos estão presentes antes de tentar o build.
+
+## v1.2.1 — 2026-08-16
+
+- **Corrigido:** Stuttering de áudio sob alto load — amostragem GRBM reduzida
+  de 32 para 16 iterações e cache aumentado de 25ms para 100ms, reduzindo
+  overhead de CPU em 8x (de ~6.2% para ~0.78%).
+- **Corrigido:** Falha na aplicação de patches no SteamOS 3.8.16 — adicionado
+  `--fuzz=3` a todos os comandos de patch para maior tolerância a offsets de
+  linha.
+- **Corrigido:** Falha na instalação de pacotes AUR em locales em português —
+  erros de verificação de validade agora são detectados como erros de rede
+  recuperáveis, com limpeza automática do cache antes de tentar novamente.
+- **Corrigido:** URL do repositório do MastaG corrigida nos créditos.
+
+## v1.2.0 — 2026-08-15
+
+- **Novo:** Opção de instalação combinada Audio + GFX1013 — compila ambos os
+  fixes num único módulo de kernel, economizando tempo e evitando reboots
+  duplicados.
+- **Novo:** Telemetria de GPU atualizada com cache de 100ms e amostragem GRBM
+  de 16 iterações para relatórios de frequência e atividade responsivos sem
+  stuttering de áudio sob alto load. Inclui modo de telemetria completa
+  (opt-in via `pp_dpm_socclk`) e suporte a métricas híbridas de 8 núcleos.
+  Baseado no [patch de telemetria do MastaG](https://github.com/MastaG/linux-cachyos-bc250).
+- **Novo:** Guarda defensiva TTM NULL-page — previne kernel panic na
+  limpeza parcial de alocação de memória da GPU. Sempre aplicado, sem
+  configuração necessária.
+  Baseado no [patch TTM do MastaG](https://github.com/MastaG/linux-cachyos-bc250).
+- **Novo:** Workaround opcional de flush de runlist KFD para usuários de
+  ROCm/compute (opt-in via `amdgpu.bc250_flush_by_runlist=1`).
+  Baseado no [patch KFD do MastaG](https://github.com/MastaG/linux-cachyos-bc250).
+- **Melhoria:** +20-25% de performance de GPU em workloads de compute assíncrono
+  (ex.: Cyberpunk 2077) graças à correção de fila de compute GFX1013.
+- **Melhoria:** Performance de shaders FSR 4 — a otimização de dot-product INT8
+  (`imul24_relaxed`) está incluída no Mesa 26.2.0-rc3, resultando em ~42%
+  menos instruções e ~61% menos latência nos shaders do FSR 4. Basta ativar
+  o FSR 4 nos jogos — o driver já está otimizado.
+  Baseado em [dmorazasanchez/bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4).
+- **Corrigido:** Compatibilidade do build do Mesa com todas as versões do
+  glibc — a verificação de ETIME agora detecta se `_GNU_SOURCE` é necessário
+  e patcheia o Mesa adequadamente, prevenindo falhas de build em glibc
+  antigo e novo.
+- **Corrigido:** Falha na aplicação de patches ao atualizar de uma versão
+  anterior — o arquivo de header do kernel agora é corretamente resetado
+  antes de aplicar novos patches.
+
+### Agradecimentos
+
+Este release integra patches da comunidade BC-250:
+- **MastaG** ([@MastaG](https://github.com/MastaG)) — patches de telemetria
+  de GPU, guarda TTM NULL-page e flush de runlist KFD.
+- **dmorazasanchez** ([@dmorazasanchez](https://github.com/dmorazasanchez)) —
+  pesquisa e otimização de dot-product INT8 para FSR 4 no BC-250.
+- **keyboardspecialist** ([@keyboardspecialist](https://github.com/keyboardspecialist)) —
+  fixes originais do BC-250 SteamOS (ACPI, áudio DP, WiFi).
+
+## v1.1.5 — 2026-08-14
+
+- **Corrigido:** o build do Mesa ainda falhava com `Could not get define 'ETIME'`
+  no glibc 2.43 mesmo após o fix da v1.1.4. A causa raiz: `cc.has_define()`
+  chama `cc.get_define()` internamente, então lança o mesmo erro. O script de
+  build agora patcheia o prefix do `get_define` no `meson.build` para incluir
+  `#define _GNU_SOURCE` — o glibc 2.43 esconde o `ETIME` atrás do `_GNU_SOURCE`,
+  e o `get_define` do Meson usa apenas o prefix (não os `pre_args` do projeto).
+  Assim o `get_define` encontra `ETIME=62` diretamente, evitando tanto o erro
+  quanto qualquer conflito de redefinição.
+
+## v1.1.4 — 2026-08-13
+
+- **Corrigido:** o build do Mesa ainda falhava com `Could not get define 'ETIME'`
+  em sistemas com GCC 15.x + glibc 2.43 (ex.: SteamOS 3.8.16). A causa raiz é
+  que o `cc.get_define()` do Meson 1.8.2 erroa em vez de retornar string vazia
+  quando o define está faltando, quebrando o próprio fallback do Mesa. O script
+  de build agora patcheia o `meson.build` do Mesa para usar `cc.has_define()`
+  (que retorna booleano), fazendo o fallback funcionar corretamente.
+
+## v1.1.3 — 2026-08-12
+
+- **Corrigido:** o build do Mesa ainda falhava com `Could not get define 'ETIME'`
+  mesmo com o fix da v1.1.2, porque `-Dc_args` não afeta as verificações de
+  compilador do Meson. O define de fallback agora é exportado via `CFLAGS`,
+  que o `cc.get_define()` do Meson de fato respeita.
+
+## v1.1.2 — 2026-08-11
+
+- **Corrigido:** a etapa de build do Mesa da correção GFX1013 podia falhar
+  durante o `meson setup` com `Could not get define 'ETIME'` em algumas
+  combinações de glibc/GCC (notavelmente GCC 15.x). O script de build agora
+  detecta o define faltante e injeta um fallback (`-DETIME=ETIMEDOUT`) para
+  que a configuração complete com sucesso.
+
+## v1.1.1 — 2026-08-11
+
+- **Corrigido:** a correção GFX1013 (e a correção de áudio comum, que usa a
+  mesma etapa de build) podia falhar ao instalar em alguns sistemas por um
+  erro de compilador em uma ferramenta de build do kernel sem relação com a
+  correção, desbloqueando a etapa afetada do build.
+
+## v1.1.0 — 2026-08-09
+
+- **Novo:** Correção de Compute GFX1013 (opção 11 do menu) — melhora o
+  desempenho de computação da GPU e corrige jogos que não abriam ou
+  rodavam de forma incorreta na GPU do BC-250.
+- Adicionada uma linha de status para a nova correção no menu principal.
+- A correção pode ser instalada e revertida a qualquer momento pelo menu.
+
+## v1.0.5 — 2026-08-03
+
+- **Corrigido:** o revert completo do `build.sh` pro estado de 2026-08-01 na
+  v1.0.4 removeu o passo de reset da árvore pro estado pristine antes da
+  stack de patches, exatamente como avisado na hora. Isso trouxe de volta o
+  bug de "árvore desviou" que aquele passo corrigia: o `fetch-sources.sh`
+  reaproveita a árvore de kernel vendorizada entre execuções assim que ela
+  já está no commit certo, então um arquivo deixado num estado de uma
+  tentativa de patch anterior podia falhar em aplicar OU reverter de forma
+  limpa contra o texto do patch atual, abortando a build inteira. Ocorreu na
+  prática: `apply Cyan Skillfish GPU telemetry patch` falhou com exatamente
+  esse erro numa build real depois do revert da v1.0.4. Resetei manualmente
+  a árvore afetada (`cyan_skillfish_ppt.c`) pro estado pristine pra
+  destravar a instalação em andamento, e reintroduzi o passo de reset no
+  `build.sh` — restrito só aos arquivos que a stack atual de dois patches
+  toca (`cyan_skillfish_ppt.c`, `dcn201_clk_mgr.c`, `clk_mgr.c`), sem
+  aplicar o patch de 8 núcleos junto.
+
+## v1.0.4 — 2026-08-03
+
+- **Revertido:** `external/bc250-steamos/bc250-audio-fix/` (sistema de build
+  e conjunto de patches do fix de áudio/vídeo DisplayPort + métricas de GPU)
+  foi revertido de volta ao estado exato de 2026-08-01 (commit `1e3b9f0`, o
+  dia em que a opção de menu `bc250-detect` foi adicionada), em cima do
+  `gfxclk.patch` já revertido na v1.0.2. O
+  `bc250-cyan-skillfish-8core-metrics.patch` — adicionado em 2026-08-02,
+  totalmente novo naquele dia — foi removido; o `build.sh` não aplica mais
+  esse patch nem reseta a árvore vendorizada pra um checkout pristine antes
+  da stack de patches (também adicionado em 2026-08-02). O `README.md` foi
+  revertido pra bater. Efeito líquido: só restam o patch de clock de
+  áudio/vídeo DP, a telemetria de atividade via GC, e o `gfxclk` de consulta
+  direta via SMU sem validação, batendo com o último estado conhecido antes
+  do trabalho de métricas de 8 núcleos Robin 3.00 e suas
+  regressões/correções subsequentes (v1.0.0 até v1.0.3). Verificado que a
+  stack de dois patches resultante aplica limpa contra um checkout pristine
+  recém-criado.
+
+## v1.0.3 — 2026-08-02
+
+- **Corrigido:** o auxiliar `audio_fix_resolve_fullsha()` de
+  `install_audio_fix()` rodava `git ls-remote
+  https://github.com/Evlav/linux-integration.git` sem timeout pra resolver
+  antecipadamente o SHA completo (40 caracteres) do commit do kernel em
+  execução. Em pelo menos uma ocasião essa chamada enviou a requisição HTTP/2
+  `git-upload-pack` e nunca recebeu resposta (reproduzido e confirmado: um
+  GET HTTPS simples na mesma URL respondeu na hora, mas o `git ls-remote` em
+  si travou por mais de 30s), congelando todo o fluxo de retomada do
+  "Install All" logo após "Running patch-driver.sh...". O chamador já tolera
+  falha na resolução (`|| true`, caindo pro `fetch-sources.sh` resolver o
+  commit sozinho via API REST do GitHub), mas esse fallback nunca chegava a
+  rodar porque a chamada bloqueante em si nunca retornava. Envolvida em
+  `timeout 15`.
+
+## v1.0.2 — 2026-08-02
+
+- **Revertido:** o wrapper de validação de faixa do
+  `bc250-cyan-skillfish-gfxclk.patch` (adicionado na v1.0.0, parcialmente
+  corrigido na v1.0.1) foi totalmente revertido de volta pra consulta direta
+  e incondicional via SMU `GetGfxclkFrequency` — a versão confirmada
+  funcional antes da v1.0.0. O teste de campo da v1.0.1 mostrou o % de
+  atividade da GPU voltando a funcionar (esperado — aquele fix removeu o
+  abort da struct inteira), mas o clock em MHz continuou travado em 0 e a
+  temperatura da GPU continuou congelada: o valor de fallback usado numa
+  leitura de clock rejeitada/inválida, `metrics.Current.GfxclkFrequency` da
+  tabela `SmuMetrics_t` do firmware, é ele mesmo sempre zero/obsoleto nesse
+  hardware — essa instabilidade é exatamente o motivo pelo qual a consulta
+  direta via SMU foi criada em primeiro lugar, então usá-la como fallback
+  não resolvia nada. A causa raiz do congelamento de temperatura junto com o
+  MHz travado em 0 precisa de mais investigação de campo a partir dessa
+  base revertida antes de qualquer nova tentativa de validação de faixa do
+  gfxclk.
+
+## v1.0.1 — 2026-08-02
+
+- **Corrigido:** o `bc250-cyan-skillfish-gfxclk.patch` (introduzido na v1.0.0)
+  fazia `cyan_skillfish_get_gpu_metrics()` retornar cedo demais — descartando
+  a leitura *inteira* de `gpu_metrics` (temperatura da GPU, % de atividade da
+  GPU, e todas as métricas por-núcleo de CPU, não só o clock) — sempre que
+  sua própria consulta direta de clock GFX via SMU com validação de faixa
+  vinha fora de `CYAN_SKILLFISH_SCLK_MIN`/`MAX` ou falhava por outro motivo.
+  Na prática isso deixava o relato de carga/temperatura da GPU parado ou
+  mostrando 0% em idle, só "recuperando" quando a carga empurrava o clock de
+  volta pra faixa válida — o que por sua vez impedia a curva de fan
+  gerenciada de subir a tempo e podia deixar a placa superaquecer sob carga
+  sustentada. Agora a falha na consulta de clock só cai de volta pro valor
+  bruto (sem validação) `metrics.Current.GfxclkFrequency` para esse campo
+  específico; todos os outros sensores de `gpu_metrics` continuam
+  atualizando normalmente a cada leitura.
+
+## v1.0.0 — 2026-08-02
+
+Primeira versão numerada. Adota versionamento semântico e GitHub Releases
+(zip para download) em vez de versões com data e do instalador `curl | bash`.
+
+- **Alterado:** Distribuição migrou de um one-liner `curl`-piped do
+  `start.sh` / clone git com auto-update para GitHub Releases versionados.
+  Baixe o zip da release mais recente, extraia e rode o `start.sh` — veja a
+  seção Instalação Rápida no README.
+- **Removido:** Auto-update a cada abertura (`git fetch origin main` +
+  `reset --hard` no início do `start.sh`). Ele descartava silenciosamente
+  qualquer alteração local não commitada ao abrir, podendo apagar trabalho
+  em andamento. Atualizar o toolkit agora significa baixar o zip da release
+  mais recente. O bootstrap standalone (buscar o repositório completo quando
+  `start.sh` roda sem os assets vendorizados de `external/`) não foi afetado.
+- **Adicionado:** `bc250-cyan-skillfish-8core-metrics.patch` em
+  `external/bc250-steamos/bc250-audio-fix`, vendorizado da versão mais nova
+  de [keyboardspecialist/bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos).
+  Em BIOS Robin 3.00 + topologia 8-core/16-thread totalmente desbloqueada
+  (`CPU Core Unlock`), lê power/temperatura/frequência reais por-núcleo dos
+  8 núcleos direto da tabela `PMSTATUSLOG` da SMU via acesso direto a
+  registrador PCIe, em vez do layout `SmuMetrics_t` de fábrica, que só
+  carrega 6 entradas de núcleo — o patch set anterior duplicava/truncava
+  silenciosamente os dados por-núcleo em sistemas 8-core desbloqueados. Cai
+  de volta pro relato de 6 núcleos do `SmuMetrics_t` (`-ENODEV`) em qualquer
+  outra topologia, então é seguro em sistemas 6c/12t sem modificação também.
+  Nota: o arquivo de patch publicado originalmente estava truncado (faltavam
+  chaves de fechamento) — completado manualmente e verificado para aplicar
+  de forma limpa e gerar C sintaticamente válido contra a árvore de kernel
+  vendorizada deste toolkit antes de ser incorporado.
+- **Alterado:** `bc250-cyan-skillfish-gfxclk.patch` atualizado para a versão
+  mais nova upstream, que envolve a consulta direta de clock GFX via SMU em
+  validação de faixa (descarta leituras fora de
+  `CYAN_SKILLFISH_SCLK_MIN`/`MAX` em vez de propagar valores inválidos para
+  `gpu_metrics`/hwmon).
+- **Corrigido:** o `build.sh` reaproveitava uma árvore de kernel já com
+  patch aplicado entre execuções separadas (`fetch-sources.sh` pula o
+  re-checkout quando a árvore já está no commit do kernel em execução, por
+  design, para ganhar velocidade). Quando o *conteúdo* de um patch
+  vendorizado muda entre execuções — como a atualização do `gfxclk.patch`
+  acima — o arquivo deixado por um build anterior podia ficar num estado que
+  não aplicava nem revertia de forma limpa contra o novo texto do patch,
+  abortando com "tree has drifted". O `build.sh` agora reseta exatamente os
+  arquivos que sua cadeia de patches toca (`cyan_skillfish_ppt.c`,
+  `dcn201_clk_mgr.c`, `clk_mgr.c`) para o estado pristine do git antes de
+  aplicar os patches, em toda execução.
+
+## Histórico pré-1.0 (versões datadas)
+
+### 2026-08-01
+
+- **Adicionado:** `RAM/VRAM Split` em `Install Manual` (`10`/`10R`) e `Install All`/`Revert All`. Traz vendorizado o [fanoush/bc250_memcfg](https://github.com/fanoush/bc250_memcfg) (compilado localmente na instalação) para reduzir o `UMA_SIZE` do split permanente de fábrica (8192MB, 8GB/8GB) para o piso mínimo documentado de 512MB na CMOS com bateria da BC-250, liberando quase toda a RAM de 16GB em idle, e eleva o teto dinâmico de VRAM do kernel via `ttm.pages_limit` no GRUB (~12GB) para jogos que pedem 8GB+ de VRAM não travarem com o split mais baixo. Não precisa de BIOS modificada; o status mostra o `UMA_SIZE` atual. Corrigidos dois bugs encontrados em seguida: o build agora força a reinstalação de `glibc`/`base-devel` quando o `gcc` não consegue de fato compilar um programa C (os headers podem sumir/ser removidos do overlay do SteamOS mesmo com o `gcc` presente), e a comparação do readback pós-escrita na CMOS agora remove o zero-padding do `bc250memcfg` (`0512`) antes de comparar.
+- **Adicionado:** Auto-reboot opcional para o `Desbloqueio de Núcleos de CPU`. Após um power-off frio, a AGESA só relê a máscara de núcleos reescrita no boot *seguinte* (não naquele em que o serviço de boot a reaplica), então recuperar os 2 núcleos extras sempre custa mais um reboot. A instalação agora pergunta se quer disparar esse segundo reboot obrigatório automaticamente, salvando a escolha em `/etc/bc250-core-unlock.conf`; o serviço de boot só reinicia sozinho logo após uma escrita nova da máscara com os núcleos ainda inativos, nunca num boot que já estava desbloqueado — evitando loop de reboot em caso de falha real de enumeração.
+- **Adicionado:** `Run bc250-detect` (`D`) no menu de Perfil de Performance, para reajustar manualmente o undervolt da CPU com frequência/tensão/temperatura alvo personalizadas — útil após ligar/desligar o `Desbloqueio de Núcleos de CPU`, já que 6c/12t vs 8c/16t muda o perfil elétrico/térmico da CPU o suficiente para um `scale` ajustado antes deixar de ser o ideal.
+- **Corrigido:** O status do `Desbloqueio de Núcleos de CPU` mostrava fixo "6c/12t, SteamOS default" sempre que o serviço de boot não estava instalado, mesmo que o revert só remova esse serviço — a própria máscara de núcleos (e portanto o estado real 8c/16t) permanece ativa até um power-off frio de verdade. O status agora checa a contagem real de núcleos também nesse caso.
+
+### 2026-07-30
+
+- **Adicionado:** `Desbloqueio de Núcleos de CPU` em `Install Manual` (`9`/`9R`) e em `Install All`/`Revert All`. Traz vendorizado o [rw-r-r-0644/bc250-core-unlock](https://github.com/rw-r-r-0644/bc250-core-unlock), que escreve a máscara de presença de núcleos da BC-250 via mensagem na mailbox da SMU para habilitar os 2 núcleos de CPU desabilitados (6c/12t → 8c/16t). Nenhuma adaptação específica do SteamOS foi necessária — o script upstream só acessa o espaço de configuração PCI e o serviço já existente do governor de GPU. Como a escrita é volátil após um power-off frio, a instalação cria um serviço systemd de boot (`bc250-core-unlock.service`) que reaplica a escrita a cada inicialização; o status agora mostra a contagem atual de núcleos/threads. ⚠ Experimental — veja `external/bc250-core-unlock/README.md` para as ressalvas (possível binning de silício, bug de leitura de clock da GPU).
+- **Alterado:** `Install ACPI Fix` agora busca as tabelas SSDT-CST/SSDT-PST de [mendesrr/bc250-acpi-fix-updated-8c](https://github.com/mendesrr/bc250-acpi-fix-updated-8c) em vez das da bc250-collective, já que a comunidade relatou que as tabelas originais (só 6c) se comportam mal depois que os 2 núcleos extras são desbloqueados. Instalações existentes atualizam automaticamente na próxima vez que a correção de ACPI rodar. `Desbloqueio de Núcleos de CPU` agora instala/atualiza essa correção de ACPI de forma transparente na mesma execução, sem confirmação extra, então as duas correções são sempre aplicadas juntas.
+- **Alterado:** Re-vendorizado `external/bc250-steamos/bc250-audio-fix` do upstream [keyboardspecialist/bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos), que agora também corrige `cyan_skillfish_ppt.c` para consultar o clock GFX direto da SMU e adicionar o relato de utilização de GPU (`bc250-cyan-skillfish-gfxclk.patch`, `bc250-cyan-skillfish-gpu-telemetry.patch`) — a correção reportada pela comunidade para as métricas de clock/carga da GPU ficarem imprecisas depois que os 2 núcleos extras são desbloqueados. `Install DP Audio/Video Fix` (Install Manual `7`) aplica isso junto com a correção de clock do DisplayPort já existente; não é encadeado automaticamente no `Desbloqueio de Núcleos de CPU` já que recompila um módulo do kernel, mas o `Install All` já roda antes do passo de desbloqueio de núcleos. Também vendorizado o helper `fetch-steamos-package.sh` do upstream (descoberta de pacote SteamOS multi-canal) e corrigido uma falsa-falha no workaround de SIGPIPE deste toolkit agora que o upstream corrigiu esse bug de forma independente.
+- **Adicionado:** `RAM/VRAM Split` em `Install Manual` (`10`/`10R`) e `Install All`/`Revert All`. Traz vendorizado o [fanoush/bc250_memcfg](https://github.com/fanoush/bc250_memcfg) (compilado localmente a partir do código-fonte na instalação) para escrever `UMA_SIZE=512` na CMOS com bateria da BC-250 — a BIOS de fábrica reserva um valor fixo de 8192MB (split 8GB/8GB) permanentemente para VRAM, e 512MB é o piso mínimo documentado, liberando quase toda a RAM de 16GB em idle. Também eleva o teto dinâmico de VRAM do kernel via `ttm.pages_limit` no GRUB (~12GB), já que o teto padrão com um piso de 512MB pode ser baixo demais para jogos que pedem 8GB+ de VRAM. Não precisa de BIOS modificada; o status mostra o `UMA_SIZE` atual. O revert restaura o split de fábrica de 8192MB e remove o override do GRUB.
+- **Corrigido:** o `nano` perdia a navegação por setas ao editar a config de CPU/GPU (menu Performance `F`/`E`) — o redirecionamento `exec > >(tee ...) 2>&1` do run-log do toolkit deixava o stdout do `nano` como um pipe em vez de um TTY de verdade, quebrando o endereçamento de teclado/cursor do ncurses. Os dois editores agora falam direto com `/dev/tty`.
+
+### 2026-07-26
+
+- **Corrigido:** O bootstrap standalone de um clique agora corrige a propriedade de `~/.bc250-toolkit` antes de clonar como o usuário desktop, evitando `could not create work tree dir: Permission denied` após execuções anteriores como root.
+- **Corrigido:** As auto-atualizações via git agora rodam como o usuário desktop e corrigem a propriedade do checkout primeiro, evitando `dubious ownership`, `.git/FETCH_HEAD: Permission denied`, e prompts de salvamento da IDE causados por arquivos do repositório de propriedade do root.
+- **Corrigido:** A ativação em tempo real do ZSWAP agora persiste após reiniciar através de uma regra do systemd-tmpfiles em kernels SteamOS que ignoram `zswap.enabled=1`; o status também distingue ZSWAP configurado-mas-inativo.
+
+### 2026-07-23
+
+- **Adicionado:** A opção `Z` de `Extras` instala o plugin Decky Toolkit SteamOS Control pré-compilado. Instala o Decky Loader estável automaticamente quando necessário, copia o artefato do plugin já pronto, e reinicia o loader sem precisar de Node.js, pnpm, ou build local.
+- **Adicionado:** Controles de Pump Fan automático, manual e gerenciado com curva de quatro pontos para o sensor/canal PWM NCT da BC-250, além de controles opcionais de efeitos da LED bar quando `steamos-led.service` está presente.
+- **Adicionado:** Persistência SteamOS para a configuração de fan do Toolkit SteamOS Control e o serviço de fan gerenciado.
+- **Melhorado:** A interface do Decky separa as visões de Cooler e LED bar, preserva mudanças não salvas dos sliders durante o polling de status, e desabilita os controles de Pump Fan quando o sensor/canal PWM necessário não está disponível.
+
+### 2026-07-20
+
+- **Adicionado:** o `start.sh` agora se auto-atualiza a cada abertura. Quando rodado de um clone git, ele busca `origin/main` e reseta forçadamente para o commit mais recente, reexecutando se algo mudou. Quando rodado como script standalone, ele faz bootstrap do repositório completo em `~/.bc250-toolkit/bc250-steamos-real-toolkit` como antes.
+- **Removido:** a opção manual `Update Script` (`U`) do menu e a função `run_update_script()` não são mais necessárias porque as atualizações acontecem automaticamente na abertura.
+
+  *(Ambos foram revertidos na v1.0.0 acima — o auto-update na abertura acabou sendo destrutivo para mudanças locais em andamento.)*
+
+### 2026-07-19
+
+- **Adicionado:** o `start.sh` agora faz bootstrap automático quando baixado sozinho (ex.: o instalador de uma linha via `curl`). Se os assets vendorizados de `external/` estão faltando, ele busca o repositório completo do toolkit em `${REAL_HOME}/.bc250-toolkit/bc250-steamos-real-toolkit` via `git` (com fallback via `curl`+`tar`) e reexecuta a partir dali.
+- **Corrigido:** `cpu_governor_setup()` agora recria o `bc250-smu-oc.service` a partir de um `/etc/bc250-smu-oc.conf` existente quando o repositório vendorizado `bc250_smu_oc` não está presente, evitando a falha `Unit bc250-smu-oc.service does not exist`.
+
+### 2026-07-18
+
+- **Alterado:** o driver WiFi/BT USB AIC8800D80 saiu de "Install All" / "Install Manual" e foi para o menu `Extras`, usando agora `A` (instalar) e `R` (reverter). O driver não usa mais o `steamdeck-setup.sh` do fornecedor; ele compila e instala os módulos AIC8800, firmware, regra udev e dados do usb_modeswitch diretamente, WiFi apenas.
+- **Alterado:** os repositórios de correções da comunidade (`bc250_smu_oc`, `nct6687d`) e o repositório principal de correções agora são vendorizados/clonados em `$SCRIPT_DIR/external/` em vez de `~/.local/share/`, mantendo os assets locais e em cache. O `.gitignore` agora exclui artefatos de build de kernel gerados dentro de `external/`.
+- **Alterado:** as letras de opção do menu `Extras` foram reordenadas em ordem alfabética (`A`, `F`, `H`, `K`, `P`, `R`, `X`, `0`).
+- **Adicionado:** persistência de atualização do SteamOS. O toolkit rastreia componentes instalados em `${REAL_HOME}/.bc250-toolkit/installed-components`; habilitar a persistência em `Extras` (`P`) instala o `bc250-toolkit-persist.service` e uma lista de "keep" do atomic-update. Após uma atualização do SteamOS, o toolkit reinstala componentes perdidos e restaura configs salvas.
+- **Adicionado:** snapshots de configuração para overclock de CPU/GPU (`/etc/bc250-smu-oc.conf`, `/etc/cyan-skillfish-governor-smu/config.toml`) e CoolerControl (`/etc/coolercontrol`) que são restaurados automaticamente após reaplicar.
+- **Melhorado:** visibilidade de comandos em execução com mensagens concisas de progresso `[contexto] iniciando...` / `[contexto] concluído.` em `run_with_retry()` e `steamos_writable()` sem poluir a saída.
+- **Melhorado:** os logs de diagnóstico de erro agora incluem um trace completo de `set -x` e a saída capturada recente.
+- **Melhorado:** falhas de rede/download agora perguntam `[R]etentar` ou `[A]bortar`; os prompts são pulados no modo de reaplicação não assistida (`AUTO=1`).
+- **Melhorado:** o `Install All` rastreia as etapas concluídas e oferece retomar a partir da última etapa não finalizada na próxima execução.
+- **Corrigido:** a instalação de persistência não inicia mais o `bc250-toolkit-persist.service` imediatamente (apenas `enable`), evitando um travamento por reaplicação recursiva.
+- **Corrigido:** a instalação do WiFi/BT AIC8800 falhava com `Update persistence helper missing: /home/deck/tools/bc250/bc250-update-persistence.sh`. O toolkit agora cria um link do helper a partir do repositório de correções para o local esperado antes de rodar o `steamdeck-setup.sh`.
+- **Alterado:** as opções de instalar e reverter o driver WiFi/BT AIC8800 em `Extras` agora estão agrupadas em um submenu dedicado.
+- **Alterado:** as opções de habilitar e ver a Persistência de Atualização do SteamOS no menu principal agora estão agrupadas em um submenu (`E` / `V`).
+- **Corrigido:** a lista de persistência agora detecta e registra automaticamente componentes já instalados do toolkit, então nada se perde ao habilitar a persistência depois do fato.
+
+### 2026-07-17
+
+- **Corrigido:** o menu de status do ZSWAP mostrava "ZRAM desligado / ZSWAP ligado" mesmo quando `/sys/module/zswap/parameters/enabled` era `N` após reiniciar. O toolkit agora habilita o ZSWAP em tempo real imediatamente e só reporta LIGADO quando o parâmetro em tempo real é `Y`.
+- **Alterado:** o tamanho padrão do swapfile foi elevado para 32G e o swappiness padrão para 120, tanto na "Configuração de Swap" manual quanto no fluxo do "Install All".
+- **Alterado:** a opção 1 do menu principal agora lê "Instalar todas as otimizações necessárias" em sua descrição.
+- **Melhorado:** selecionar `0` para sair agora espera Enter antes de fechar, mantendo a janela do Konsole visível.
+
+### 2026-07-15
+
+- **Corrigido:** a Correção de Clock de Áudio/Vídeo DisplayPort falhava quando a release do kernel SteamOS continha apenas um SHA de commit curto. O toolkit agora resolve o commit completo via `git ls-remote` e o passa como `FULLSHA` para o script de patch do driver da comunidade, evitando o erro HTTP 422 da API do GitHub.
+- **Corrigido:** a Correção de Clock de Áudio/Vídeo DisplayPort parava durante a extração de dependências porque o pipeline `tar | sed | awk` do upstream saía cedo demais sob `pipefail`. O toolkit agora corrige essa incompatibilidade antes de rodar o build.
+- **Adicionado:** um aviso de atualização do SteamOS é mostrado a cada abertura e documentado em ambos os READMEs. Os usuários são instruídos a checar o status do toolkit após toda atualização e estar preparados para reinstalar componentes, especialmente com o canal Beta ativo.
+- **Melhorado:** sessões abertas pela área de trabalho agora usam `konsole --hold`, erros não tratados geram logs de diagnóstico, e os logs de erro são copiados para a Área de Trabalho quando disponível.
+- **Melhorado:** o `sudo` é autenticado uma vez no início e seu timestamp é renovado durante a sessão, então instaladores aninhados não devem pedir a senha repetidamente.
+
+### 2026-07-14
+
+- **Renomeado** o script principal de `bc250-tollkit-steam-os-real.sh` (erro de digitação) para `start.sh`. Atualizado o `TOOLKIT_RAW_URL` (auto-atualizador) e os comandos de instalação em ambos os READMEs de acordo.
+- **Corrigido:** `[ERR] failed to read cyan_skillfish.gfx1013.mmSPI_PG_ENABLE_STATIC_WGP_MASK with umr` reportado por usuários. `select_asic()` agora tenta auto-detectar o seletor ASIC correto via `umr -lb` antes de desistir, cobrindo placas onde o seletor padrão `cyan_skillfish.gfx1013` não bate.
+- **Corrigido:** `bc250-detect: command not found` quando o usuário já tinha o governor de CPU instalado e escolhia não reinstalar (respondendo `n`). O script ia direto para `cpu_governor_setup()` sem adicionar o diretório bin do pipx ao `PATH`. Corrigido sempre adicionando `/root/.local/bin` e `/home/deck/.local/bin` no início de `cpu_governor_setup()`.
+
+### 2026-07-12
+
+- **Corrigido:** o menu 2 → opção 9 (CU Unlock Live) fechava o toolkit inteiro quando o usuário apertava `q` para sair do gerenciador de CU. Causa raiz: `bc250-cu-live-manager.sh` chama `exit 0` ao sair, o que se propagava para o script pai. Corrigido rodando o subscript em uma subshell: `( bash "$CU_LIVE_MANAGER" )`.
+
+### 2026-07-11 (2)
+
+- **O `game-save-sync`** foi extraído para seu próprio repositório standalone: [nonsteam-save-sync](https://github.com/rpf16rj/nonsteam-save-sync). Não faz mais parte deste toolkit. Veja aquele repositório para instruções de instalação e uso.
+
+### 2026-07-11
+
+- Adicionado um instalador de driver do Xbox Wireless Adapter em **Extras**: instala `dkms`, `xone-dkms`, e `xone-dongle-firmware` via o AUR helper, coloca na blacklist drivers conflitantes (`xpad`, `mt76x2u`), e carrega o `xone` automaticamente.
+- Corrigido a atualização do repositório de Correções da Comunidade abortando quando um build anterior deixava artefatos locais (ex.: `amdgpu.ko.zst`) no checkout.
+
+### 2026-07-09
+
+- Simplificado e reorganizado todo o menu: **Install All**, **Install Manual**, **Perfis de Performance**, **Reverter/Desinstalar Tudo**, e **Extras** (sensores, CoolerControl, HDMI-CEC), além de acesso rápido a **Verificar Minha Configuração**, **Changelog**, **Atualizar Script**, e **Ajuda**.
+- Adicionado um atualizador embutido, um atalho de área de trabalho criado automaticamente no primeiro uso, e as Mitigações de CPU + CU Unlock Live agora fazem parte do fluxo de instalação/desinstalação em um clique.
+- Adicionado o ajuste de Swap/ZRAM→ZSWAP e o controle de HDMI-CEC / TV.
+- Corrigido um bug que impedia a interface de controle remoto do governor de GPU de funcionar corretamente.
+
+### 2026-07-08
+
+- Adicionado monitoramento de sensores e fan para o chip onboard da BC-250, com controle total de PWM opcional.
+- Adicionada a integração com CoolerControl para curvas de fan personalizadas.
+- Adicionado o menu de Correções da Comunidade (estados de energia ACPI, correção de áudio/vídeo do DisplayPort, driver WiFi/BT AIC8800).
+- Várias correções de confiabilidade de instalação validadas em hardware real.
+
+### 2026-07-06
+
+- Primeiro lançamento público: Install All / Uninstall All em um clique, CU Unlock Live, perfis de performance, log de erros automático, e reparo automático do keyring do pacman.

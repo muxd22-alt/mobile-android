@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Bazzite Deepin OGC - The ultimate Linux gaming operating system featuring an immutable Bazzite base, OGC Kernel optimizations, and the beautiful Deepin Desktop Environment.">
+    <title>Bazzite Deepin OGC | Next-Gen Linux Gaming</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Color Palette */
+            --bg-base: #0a0a0f;
+            --bg-accent: #111118;
+            --primary: #4f46e5;
+            --primary-glow: rgba(79, 70, 229, 0.4);
+            --secondary: #06b6d4;
+            --secondary-glow: rgba(6, 182, 212, 0.4);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            
+            /* Glassmorphism */
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            
+            --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Ambient Background */
+        .ambient-glow {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: 100vh;
+            background: 
+                radial-gradient(circle at 20% 30%, var(--primary-glow) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, var(--secondary-glow) 0%, transparent 40%);
+            z-index: -1;
+            filter: blur(100px);
+            opacity: 0.6;
+            animation: breathe 10s infinite alternate;
+        }
+
+        @keyframes breathe {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+            100% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.7; }
+        }
+
+        /* Hero Section */
+        header {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--secondary);
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+            animation: fadeUp 1s ease 0.2s both;
+        }
+
+        h1 {
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: fadeUp 1s ease 0.4s both;
+        }
+
+        .subtitle {
+            font-size: clamp(1.125rem, 2vw, 1.5rem);
+            color: var(--text-muted);
+            max-width: 800px;
+            margin: 0 auto 3rem auto;
+            animation: fadeUp 1s ease 0.6s both;
+        }
+
+        .cta-container {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeUp 1s ease 0.8s both;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem 2.5rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 12px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.6);
+        }
+
+        .btn-outline {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Features Section */
+        .features {
+            padding: 8rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 4rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2.5rem;
+            backdrop-filter: blur(10px);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+
+        .card p {
+            color: var(--text-muted);
+        }
+
+        /* Special Thanks Section */
+        .credits {
+            background: var(--bg-accent);
+            padding: 6rem 2rem;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .credits-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .credits-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .credits-desc {
+            color: var(--text-muted);
+            margin-bottom: 4rem;
+            font-size: 1.125rem;
+        }
+
+        .credit-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+
+        .credit-item {
+            padding: 2rem;
+            border-radius: 16px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--glass-border);
+        }
+
+        .credit-item a {
+            color: white;
+            text-decoration: none;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.25rem;
+            display: block;
+            margin-bottom: 0.5rem;
+            transition: var(--transition);
+        }
+
+        .credit-item a:hover {
+            color: var(--secondary);
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--glass-border);
+            font-size: 0.875rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .cta-container {
+                flex-direction: column;
+                padding: 0 2rem;
+            }
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow"></div>
+
+    <!-- Hero Section -->
+    <header>
+        <div class="hero-badge">Immutable • Optimized • Beautiful</div>
+        <h1>Gaming. Redefined.</h1>
+        <p class="subtitle">Experience the ultimate Linux gaming OS. The bulletproof reliability of Bazzite, supercharged by the OGC Kernel, all wrapped in the stunning elegance of the Deepin Desktop Environment.</p>
+        
+        <div class="cta-container">
+            <a href="https://github.com/muxd22-alt/Deepin_OGC_Intel/actions" class="btn btn-primary" id="downloadBtn">Download Latest ISO</a>
+            <a href="https://github.com/muxd22-alt/Deepin_OGC_Intel" class="btn btn-outline" target="_blank">View on GitHub</a>
+        </div>
+    </header>
+
+    <!-- Features Section -->
+    <section class="features">
+        <h2 class="section-title">The Best of Three Worlds</h2>
+        
+        <div class="grid">
+            <div class="card">
+                <div class="card-icon">🚀</div>
+                <h3>Atomic Bazzite Base</h3>
+                <p>Built on the foundation of Universal Blue's Bazzite. An unbreakable, read-only Fedora Atomic desktop with native Steam, Lutris, and controller support baked right into the core.</p>
+            </div>
+            
+            <div class="card">
+                <div class="card-icon">⚡</div>
+                <h3>OGC Kernel Optimized</h3>
+                <p>Leave default latency in the dust. Utilizing the specially patched OGC Kernel for aggressive CPU scaling, reduced input lag, and maximum frame rates in your favorite titles.</p>
+            </div>
+            
+            <div class="card">
+                <div class="card-icon">✨</div>
+                <h3>Deepin Elegance</h3>
+                <p>Escape boring desktops. DDE offers a glassmorphism-heavy, premium styling UI that is lightweight, incredibly responsive, and gorgeously animated right out of the box.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Special Thanks / Credits -->
+    <section class="credits">
+        <div class="credits-container">
+            <h2 class="credits-title">Standing on the Shoulders of Giants</h2>
+            <p class="credits-desc">This automated operating system compilation would simply not be possible without the masterclass engineering of these incredible open-source projects.</p>
+            
+            <div class="credit-grid">
+                <div class="credit-item">
+                    <a href="https://bazzite.gg/" target="_blank">Bazzite Project</a>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">By Universal Blue. They pioneered the immutable gaming OS movement.</p>
+                </div>
+                
+                <div class="credit-item">
+                    <a href="https://opengamingcollective.org/" target="_blank">Open Gaming Collective</a>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Hardcore, no-compromise performance tweaking for Linux gamers.</p>
+                </div>
+                
+                <div class="credit-item">
+                    <a href="https://www.deepin.org/" target="_blank">Deepin Desktop</a>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Developing the most beautiful and modern desktop UI in the ecosystem.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>Built completely in the cloud via GitHub Actions & BlueBuild.</p>
+    </footer>
+
+    <script>
+        // Simple interactivity for the buttons
+        document.querySelectorAll('.btn').forEach(button => {
+            button.addEventListener('mousedown', function() {
+                this.style.transform = 'translateY(2px)';
+            });
+            button.addEventListener('mouseup', function() {
+                this.style.transform = 'translateY(-2px)';
+            });
+        });
+    </script>
+</body>
+</html>

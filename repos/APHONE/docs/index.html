@@ -1,0 +1,241 @@
+<link rel="stylesheet" href="style.css">
+<div class="root">
+
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <div class="h1">APHONE · Research Agent</div>
+      <span class="badge badge-ok">v1.0</span>
+      <span class="badge badge-info">Termux NDK</span>
+    </div>
+    <div class="muted" style="margin-bottom:10px;">Nothing Phone 2a · Gemma 3 270M · Telegram → arXiv → GitHub Pages
+    </div>
+    <div class="flow">
+      <div class="flow-box">Telegram link</div>
+      <div class="arrow">→</div>
+      <div class="flow-box">yt-dlp</div>
+      <div class="arrow">→</div>
+      <div class="flow-box">Model A planner</div>
+      <div class="arrow">→</div>
+      <div class="flow-box">arXiv 10 min</div>
+      <div class="arrow">→</div>
+      <div class="flow-box">Model B writer</div>
+      <div class="arrow">→</div>
+      <div class="flow-box">GitHub Pages</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">One-command install — run in Termux</div>
+    <div class="code-block" id="main-cmd">
+      curl -fsSL https://raw.githubusercontent.com/muxd22-alt/APHONE/main/setup.sh | bash
+      <button class="copy-btn" onclick="copy('main-cmd-text')">copy</button>
+      <span id="main-cmd-text" style="display:none">curl -fsSL
+        https://raw.githubusercontent.com/muxd22-alt/APHONE/main/setup.sh | bash</span>
+    </div>
+    <div class="muted" style="margin-top:6px;">Or if you already have the file downloaded:</div>
+    <div class="code-block">
+      bash ~/APHONE_setup.sh
+      <button class="copy-btn" onclick="copyText('bash ~/APHONE_setup.sh')">copy</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tab-row">
+      <button class="tab active" onclick="showTab('setup')">Setup steps</button>
+      <button class="tab" onclick="showTab('run')">How to run</button>
+      <button class="tab" onclick="showTab('files')">What it installs</button>
+      <button class="tab" onclick="showTab('history')">📜 History</button>
+    </div>
+
+    <div id="tab-setup">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-txt">Update & install packages</div>
+          <div class="step-sub">llama-cpp · python · gh · git · ffmpeg</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-txt">Install Python libs</div>
+          <div class="step-sub">python-telegram-bot · yt-dlp · arxiv · feedparser · httpx</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-txt">Download Gemma 3 270M GGUF (~241 MB)</div>
+          <div class="step-sub">Unsloth optimized Q4_K_M — verified magic bytes</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div>
+          <div class="step-txt">Write nano_agent.py with your bot token</div>
+          <div class="step-sub">Token: YOUR_TELEGRAM_BOT_TOKEN</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div>
+          <div class="step-txt">gh auth login → push to muxd22-alt/APHONE</div>
+          <div class="step-sub">Auto-enables GitHub Pages on main branch</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div>
+          <div class="step-txt">Write ~/start_aphone.sh</div>
+          <div class="step-sub">Single command boots LLM server + bot together</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-run" style="display:none">
+      <div class="section-label" style="margin-top:4px;">After install — one command to launch</div>
+      <div class="code-block">
+        bash ~/start_aphone.sh
+        <button class="copy-btn" onclick="copyText('bash ~/start_aphone.sh')">copy</button>
+      </div>
+      <hr class="divider">
+      <div class="section-label">Or manually in two tabs</div>
+      <div class="muted" style="margin-bottom:4px;">Tab 1 — LLM server</div>
+      <div class="code-block">
+        llama-server -m ~/models/model_a.gguf --port 8080 --ctx-size 4096 -t 6
+        <button class="copy-btn"
+          onclick="copyText('llama-server -m ~/models/model_a.gguf --port 8080 --ctx-size 4096 -t 6')">copy</button>
+      </div>
+      <div class="muted" style="margin: 8px 0 4px;">Tab 2 — Telegram bot</div>
+      <div class="code-block">
+        cd ~/aphone && python nano_agent.py
+        <button class="copy-btn" onclick="copyText('cd ~/aphone && python nano_agent.py')">copy</button>
+      </div>
+      <hr class="divider">
+      <div class="section-label">Bot commands</div>
+      <div class="step">
+        <div class="step-num" style="font-size:10px">/s</div>
+        <div>
+          <div class="step-txt">/start — welcome message</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="font-size:10px">/st</div>
+        <div>
+          <div class="step-txt">/status — check LLM server health</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="font-size:10px">/c</div>
+        <div>
+          <div class="step-txt">/categories — list all research categories</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">↗</div>
+        <div>
+          <div class="step-txt">Send any YouTube or TikTok URL to trigger research</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-files" style="display:none">
+      <div class="pill-row" style="margin-bottom:10px;">
+        <span class="badge badge-info">~/aphone/nano_agent.py</span>
+        <span class="badge badge-info">~/models/model_a.gguf</span>
+        <span class="badge badge-info">~/start_aphone.sh</span>
+        <span class="badge badge-ok">~/aphone/RESEARCH_LOG.md</span>
+        <span class="badge badge-ok">~/aphone/index.html</span>
+        <span class="badge badge-warn">~/.gitconfig (via gh auth)</span>
+      </div>
+      <hr class="divider">
+      <div class="section-label">GitHub Pages URL after deploy</div>
+      <div class="code-block">
+        https://muxd22-alt.github.io/APHONE/
+        <button class="copy-btn" onclick="copyText('https://muxd22-alt.github.io/APHONE/')">copy</button>
+      </div>
+      <hr class="divider">
+      <div class="section-label">Report structure</div>
+      <div class="muted">Auto-categorized sections grow as you send links. Example:</div>
+      <div class="code-block" style="margin-top:6px;line-height:1.8;">
+        # APHONE Research Log<br>
+        ## AI / Machine Learning<br>
+        &nbsp;&nbsp;### [2026-03-25] Source: youtube.com/...<br>
+        ## Game Development<br>
+        &nbsp;&nbsp;### [2026-03-26] Source: tiktok.com/...
+      </div>
+    </div>
+
+    <div id="tab-history" style="display:none">
+      <div class="section-label">Research Database</div>
+      <div class="date-filter" id="date-filter">
+        <button class="date-pill active" onclick="filterDate('all')">All</button>
+        <button class="date-pill" onclick="filterDate('today')">Today</button>
+        <button class="date-pill" onclick="filterDate('yesterday')">Yesterday</button>
+        <button class="date-pill" onclick="filterDate('7')">7 Days</button>
+        <button class="date-pill" onclick="filterDate('30')">30 Days</button>
+      </div>
+      <div class="history-count" id="history-count"></div>
+      <div id="history-list">
+        <div class="muted">No research history yet. Send a link to start!</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const tabs = ['features', 'setup', 'run', 'commands', 'history'];
+  function showTab(name) {
+    tabs.forEach(t => {
+      document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
+    });
+    document.querySelectorAll('.tab').forEach((b, i) => {
+      b.classList.toggle('active', tabs[i] === name);
+    });
+    if (name === 'history') updateHistoryCount('all');
+  }
+
+  function copyText(text) {
+    navigator.clipboard.writeText(text).catch(() => { });
+  }
+
+  function filterDate(range) {
+    const items = document.querySelectorAll('.history-item');
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+    let shown = 0;
+    items.forEach(item => {
+      const d = item.getAttribute('data-date');
+      let show = false;
+      if (range === 'all') show = true;
+      else if (range === 'today') show = (d === todayStr);
+      else if (range === 'yesterday') show = (d === yesterdayStr);
+      else {
+        const days = parseInt(range);
+        const cutoff = new Date(now); cutoff.setDate(now.getDate() - days);
+        show = new Date(d) >= cutoff;
+      }
+      item.style.display = show ? 'block' : 'none';
+      if (show) shown++;
+    });
+
+    document.querySelectorAll('.date-pill').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    updateHistoryCount(range, shown, items.length);
+  }
+
+  function updateHistoryCount(range, shown, total) {
+    const el = document.getElementById('history-count');
+    const items = document.querySelectorAll('.history-item');
+    if (!total) total = items.length;
+    if (shown === undefined) shown = total;
+    if (total === 0) { el.textContent = ''; return; }
+    el.textContent = range === 'all'
+      ? `${total} report${total !== 1 ? 's' : ''}`
+      : `${shown} of ${total} reports`;
+  }
+</script>

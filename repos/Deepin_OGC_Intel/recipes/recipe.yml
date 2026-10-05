@@ -1,0 +1,63 @@
+# recipe.yml
+name: bazzite-deepin-ogc
+description: Bazzite featuring the OGC Kernel and Deepin Desktop
+base-image: ghcr.io/ublue-os/bazzite
+image-version: unstable 
+
+modules:
+  - type: files
+    # Mirrors your repo's 'files' directory onto the image root.
+    # Ensure files/usr/bin/steamos-session-select exists in your repo.
+    files:
+      - source: usr
+        destination: /usr
+
+  - type: script
+    # Installing Deepin Core Packages for Fedora
+    snippets:
+      - |
+        set -x
+        PACKAGES="deepin-desktop-base deepin-control-center deepin-daemon deepin-dock deepin-launcher deepin-session-shell deepin-session-ui deepin-terminal deepin-polkit-agent deepin-icon-theme deepin-gtk-theme deepin-wallpapers deepin-desktop-schemas deepin-api deepin-menu jq"
+        echo "=== Available repos ==="
+        dnf repolist 2>/dev/null || dnf5 repolist 2>/dev/null || rpm-ostree status
+        echo "=== Installing packages ==="
+        for pkg in $PACKAGES; do
+          echo "--- Installing $pkg ---"
+          dnf install -y --skip-unavailable --allowerasing "$pkg" 2>&1 || \
+          dnf5 install -y --skip-unavailable --allowerasing "$pkg" 2>&1 || \
+          rpm-ostree install --idempotent "$pkg" 2>&1 || \
+          echo "⚠️ SKIPPED: $pkg (not available)"
+        done
+        echo "=== Done ==="
+
+  - type: script
+    # Enabling Deepin background services
+    snippets:
+      - |
+        set -x
+        echo "=== Finding Deepin service units ==="
+        find /usr/lib/systemd/system -name '*deepin*' -o -name '*dde*' 2>/dev/null || true
+        echo "=== Enabling found services ==="
+        for svc in $(find /usr/lib/systemd/system -maxdepth 1 \( -name '*deepin*.service' -o -name '*dde*.service' \) -printf '%f\n' 2>/dev/null); do
+          echo "Enabling: $svc"
+          systemctl enable "$svc" 2>&1 || true
+        done
+        echo "=== Done ==="
+
+  - type: script
+    # Seeding the 'Return to Game Mode' shortcut for new users
+    snippets:
+      - |
+        mkdir -p /etc/skel/Desktop
+        cat << 'EOF' > /etc/skel/Desktop/ReturnToGameMode.desktop
+        [Desktop Entry]
+        Name=Return to Gaming Mode
+        Comment=Switch back to Gamescope
+        Exec=steamos-session-select gamescope
+        Icon=steamdeck-gaming-return
+        Terminal=false
+        Type=Application
+        Categories=System;
+        EOF
+        chmod +x /etc/skel/Desktop/ReturnToGameMode.desktop
+        chmod +x /usr/bin/steamos-session-select
